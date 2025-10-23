@@ -1,0 +1,47 @@
+---
+alwaysApply: true
+description: Code quality, linting, and best practices
+---
+
+# Code Quality and Best Practices
+
+## Linting Rules
+
+- Follow all linter rules and don't use any if possible
+- Fix linting errors immediately when they appear
+- Use ESLint configuration consistently across the project
+- Run linting checks before committing code
+
+## TypeScript Best Practices
+
+- Use strict TypeScript configuration
+- Define proper types for all variables, functions, and components
+- Use interfaces for object shapes and types for unions/primitives
+- Avoid `any` type unless absolutely necessary
+
+## Performance Considerations
+
+- Implement proper loading states and error boundaries
+- Avoid unnecessary re-renders
+
+## Import Patterns
+
+- Never use dynamic imports with `await import()` or `import()`
+- Always use static imports at the top of files
+- Keep all imports at the file beginning for clarity and performance
+- Use proper module resolution paths consistently
+- **Remove all unused imports** - follow ESLint warnings and errors to clean up imports
+- Organize imports in a logical order (external libraries first, then internal modules)
+
+## Code Organization
+
+- Keep functions and components small and focused
+- Use descriptive names for variables, functions, and components
+- Add comments for complex business logic
+- Follow consistent code formatting and indentation
+
+## Testing
+
+- Write tests for critical business logic
+- Test custom hooks and utility functions
+- Use proper test organization and naming conventions

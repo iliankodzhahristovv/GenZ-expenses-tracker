@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+description: Next.js best practices and server-side patterns
+---
+
+# Next.js Best Practices
+
+## Server Actions
+
+- Server actions should call services and map data for the UI
+- Server actions must be in the `actions/` directory
+- Use `"use server"` directive at the top of server action files
+- Server actions should use the dependency injection container to get services
+- Map domain models to UI models using mappers in server actions
+
+## API Endpoints
+
+- Expose server actions as API endpoints only in rare exceptions when needed
+- API endpoints should be in the `app/api/` directory
+- Prefer server actions over API endpoints for most use cases
+- AI communication endpoints should use the AI service through dependency injection
+
+## Component Data Fetching
+
+- Server-side components should call server actions directly
+- Client-side components should use custom hooks for data fetching
+- Use SWR for client-side data fetching and caching
+
+## File Organization
+
+- Follow Next.js 13+ app directory structure
+- Use route groups `(group-name)` for organization
+- Place shared layouts in the root layout
+- Use proper TypeScript types for all Next.js specific features
+
+## Performance
+
+- Use dynamic imports for code splitting when appropriate
+- Implement proper loading states and error boundaries
+- Use Next.js Image component for optimized images
+- Follow Next.js caching strategies and revalidation patterns

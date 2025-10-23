@@ -1,0 +1,41 @@
+---
+alwaysApply: true
+description: Domain models and value object patterns
+---
+
+# Domain Models and Value Objects
+
+## Domain Model Structure
+
+- Domain models should use value object interfaces and types
+- Value objects should be immutable and contain business logic
+- Use proper TypeScript types for all domain model properties
+- Domain models should be in the `modules/{domain}/domain/models/` directory
+
+## Value Object Patterns
+
+- Create value objects for complex domain concepts (e.g., `UserId`, `ProjectId`)
+- Value objects should validate their data and throw errors for invalid values
+- Use factory methods or constructors for value object creation
+- Implement proper equality and toString methods
+
+## Model Mappers
+
+- Use model mappers to convert between domain, UI, and database models
+- Mappers should be in the `mappers/` directory
+- Follow the pattern: `{Entity}UIMapper.fromDomain(domainModel)`
+- Mappers should handle null/undefined cases gracefully
+
+## Type Organization
+
+- Types should be declared in the `types/` directory
+- Group related types in the same file
+- Use clear, descriptive names for types and interfaces
+- Export types from appropriate index files
+
+## Domain Services
+
+- Domain services should contain business logic
+- Services should use repositories through dependency injection
+- Services should return domain models, not UI models
+- Use proper error handling and validation in services

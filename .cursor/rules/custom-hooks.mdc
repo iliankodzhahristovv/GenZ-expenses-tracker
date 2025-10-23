@@ -1,0 +1,40 @@
+---
+alwaysApply: true
+description: Custom hooks architecture and data fetching patterns
+---
+
+# Custom Hooks Architecture
+
+## Hook Usage
+
+- Use custom hooks everywhere in the app where possible, but avoid overkill
+- Custom hooks should encapsulate business logic and data fetching
+- Hooks should be declared in the `hooks/` folder in the appropriate module subdirectory
+
+## Data Fetching with SWR
+
+- All data fetching for hooks must use the SWR package
+- Data fetching should be isolated into separate custom hooks
+- Query keys for SWR hooks must use constant variables from [lib/constants.ts](mdc:lib/constants.ts)
+- Follow the pattern: `[SWR_KEYS.KEY_NAME, ...params]` for query keys
+
+## Hook Structure
+
+- Each hook should have a clear, single responsibility
+- Hooks should return consistent interfaces with loading, error, and data states
+- Use TypeScript interfaces for hook return types
+- Include refetch functionality for data invalidation
+
+## SWR Configuration
+
+- Use consistent SWR configuration across hooks:
+  - `revalidateOnFocus: false`
+  - `revalidateOnReconnect: false`
+  - `dedupingInterval: 30000` (30 seconds cache)
+  - `fallbackData` for default values
+
+## Server Actions Integration
+
+- When using server actions in hooks, create a fetcher function in the same file
+- Use the fetcher with SWR for consistent data management
+- Server actions should be called directly from components only when needed

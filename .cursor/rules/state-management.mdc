@@ -1,0 +1,36 @@
+---
+alwaysApply: true
+description: State management and context provider patterns
+---
+
+# State Management Patterns
+
+## Context Providers
+
+- When multiple screens and components need the same state, use context providers
+- Context providers should be in the `providers/` directory
+- Use TypeScript interfaces for context types
+- Provide custom hooks for consuming context (e.g., `useAdminContext`)
+
+## State Organization
+
+- Keep state as close to where it's used as possible
+- Use context providers for truly global state that multiple components need
+- Prefer local state over context when state is only used in one component tree
+
+## Context Provider Structure
+
+- Create context with proper TypeScript typing
+- Provide a custom hook for consuming the context
+- Include proper error handling for context consumption
+
+## State Persistence
+
+- Use localStorage for persisting user preferences and temporary state
+- Clear persisted state when appropriate (e.g., on logout)
+
+## Custom Hooks for State
+
+- Create custom hooks for complex state logic
+- Use custom hooks to encapsulate state management patterns
+- Return consistent interfaces from state management hooks

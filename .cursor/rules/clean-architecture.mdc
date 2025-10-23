@@ -1,0 +1,48 @@
+---
+alwaysApply: true
+description: Clean architecture principles and layer separation
+---
+
+# Clean Architecture Principles
+
+## Layer Separation
+
+- Follow clean architecture with clear separation of concerns
+- Organize code into distinct layers: domain, data, presentation
+- Each layer should only depend on inner layers, never outer layers
+- Use dependency injection to manage dependencies between layers
+
+## Domain Layer
+
+- Contains business logic, entities, and value objects
+- Should not depend on external frameworks or libraries
+- Define repository interfaces and domain services
+- Use pure TypeScript without framework dependencies
+
+## Data Layer
+
+- Contains repository implementations and data access logic
+- Implements domain repository interfaces
+- Handles database operations and external API calls
+- Maps between database models and domain models
+
+## Presentation Layer
+
+- Contains UI components, pages, and client-side logic
+- Uses custom hooks for data fetching and state management
+- Maps between domain models and UI models
+- Handles user interactions and form submissions
+
+## Model Mappers
+
+- Use mappers to convert between different model types
+- Separate mappers for domain-to-UI, domain-to-database, etc.
+- Keep mapping logic centralized and testable
+- Handle null/undefined cases gracefully
+
+## Dependency Flow
+
+- Domain layer: No external dependencies
+- Data layer: Depends only on domain layer
+- Presentation layer: Depends on domain and data layers
+- Use Inversify container for dependency injection

@@ -1,0 +1,33 @@
+---
+alwaysApply: true
+description: Component architecture and single responsibility principles
+---
+
+# Component Architecture Rules
+
+## Single Component Per File
+
+- Each React component must be declared in its own separate file
+- Never declare more than one component and its interface in a single file
+- Each component file should have a clear, single responsibility
+- Component file names must use kebab-case (e.g., "my-component.tsx")
+
+## Component Structure
+
+- Components should be as reusable as possible
+- Use TypeScript interfaces for all component props
+- Declare interfaces in the same file as the component, not in separate files
+- Follow the pattern: one interface, one component per file
+
+## File Organization
+
+- Components should be organized in the `components/` directory by feature/module
+- Use clear, descriptive file names that indicate the component's purpose
+- Group related components in subdirectories (e.g., `components/catalog/`, `components/admin/`)
+
+## Styling Guidelines
+
+- Use Tailwind CSS for all styling
+- Use shadcn/ui components as the base for custom components
+- Make components as reusable as possible by accepting className props
+- Follow consistent spacing and design patterns across components

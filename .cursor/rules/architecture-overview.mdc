@@ -1,0 +1,55 @@
+---
+alwaysApply: true
+description: Overall architecture overview and project structure
+---
+
+# Beams Monorepo Architecture Overview
+
+## Project Structure
+
+This is a Next.js 15+ application using clean architecture principles with the following key patterns:
+
+### Core Architecture
+
+- **Clean Architecture**: Domain, Data, and Presentation layers with clear separation
+- **Dependency Injection**: Using Inversify for service and repository management
+- **Repository Pattern**: Abstract repositories with Supabase implementations
+- **Service Layer**: Business logic encapsulated in injectable services
+- **Model Mappers**: Conversion between domain, UI, and database models
+
+### Key Directories
+
+- `modules/`: Domain-specific modules with clean architecture layers
+- `components/`: React components organized by feature
+- `hooks/`: Custom hooks for data fetching and state management
+- `actions/`: Next.js server actions for server-side operations
+- `contexts/` & `providers/`: React context for shared state
+- `mappers/`: Model conversion utilities
+- `types/`: TypeScript type definitions
+
+### Data Flow
+
+1. **Server Actions** → **Services** → **Repositories** → **Database**
+2. **Custom Hooks** → **Server Actions** (with SWR caching)
+3. **Components** → **Custom Hooks** → **UI State**
+4. **Context Providers** → **Shared State** across components
+
+### Technology Stack
+
+- **Framework**: Next.js 15+ with App Router
+- **Styling**: Tailwind CSS + shadcn/ui components
+- **State Management**: SWR for data fetching, React Context for shared state
+- **Database**: Supabase with repository pattern
+- **AI Communication**: Vercel AI package (`ai` and `@ai-sdk/openai`)
+- **Dependency Injection**: Inversify
+- **Package Manager**: pnpm exclusively
+
+### Development Principles
+
+- Single responsibility principle for all components and functions
+- One component per file with kebab-case naming
+- Custom hooks for data fetching with SWR
+- Repository pattern for all database operations
+- Context providers for shared state
+- Server actions for server-side operations
+- Clean architecture with proper layer separation

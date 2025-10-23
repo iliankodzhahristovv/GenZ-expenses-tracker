@@ -1,0 +1,4 @@
+# Migration files go here
+# Files are run in chronological order based on timestamp
+# Format: YYYYMMDDHHMMSS_description.sql
+

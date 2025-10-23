@@ -1,0 +1,142 @@
+# Database Migration Rules
+
+## Declarative Schema Approach
+
+**IMPORTANT**: This project uses **declarative database schemas**. All database changes must be made through schema files, not by writing migrations manually.
+
+### Schema Management Rules
+
+- **Never write migrations manually**: Migrations are auto-generated from schema definitions
+- **Edit schemas only**: Make all database changes by editing schema files in `supabase/schemas/`
+- **Generate migrations**: After updating schemas, run `pnpm supabase:diff` to generate migration files
+- **Review generated migrations**: Always review the generated migration before committing
+- **Schema as source of truth**: The schema files are the authoritative definition of the database structure
+
+### Workflow for Database Changes
+
+1. Edit the appropriate schema file in `supabase/schemas/`
+2. Run `pnpm supabase:diff` to generate a migration from the schema changes
+3. Review the generated migration file
+4. Test the migration locally
+5. Commit both the schema changes and generated migration
+
+## Table Naming Conventions
+
+- **Singular names**: Always use singular table names (e.g., `user`, `product`, `order`)
+- **Snake case**: Use snake_case for all table and field names (e.g., `user_profile`, `product_category`)
+- **Descriptive names**: Table names should clearly describe the entity they represent
+
+## Field Naming Conventions
+
+- **Snake case**: All field names must use snake_case (e.g., `first_name`, `created_at`, `is_active`)
+- **UK English**: Use British English spelling (e.g., `colour` not `color`, `favourite` not `favorite`)
+- **Descriptive names**: Field names should be clear and self-documenting
+
+## Data Types
+
+- **UUIDs for IDs**: All primary keys and foreign keys must use UUID type
+- **Integers for prices**: Use integer type for all price fields (store in smallest currency unit, e.g., pence)
+- **Timestamps**: Use `timestamptz` for all date/time fields for timezone awareness
+
+## Enum Conventions
+
+- **UPPERCASE**: All enum values must be in UPPERCASE (e.g., `ACTIVE`, `PENDING`, `CANCELLED`)
+- **Snake case for enum names**: Enum type names should use snake_case (e.g., `order_status`, `user_role`)
+- **Descriptive values**: Enum values should be clear and self-documenting
+
+## Required Standard Fields
+
+Every table must include these standard fields:
+
+```sql
+-- Required for all tables
+id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+deleted_at TIMESTAMPTZ NULL -- For soft deletes
+```
+
+## Soft Delete Implementation
+
+- **Use deleted_at**: Implement soft deletes using a `deleted_at` TIMESTAMPTZ field
+- **NULL for active**: Active records have `deleted_at = NULL`
+- **Timestamp for deleted**: Deleted records have `deleted_at` set to deletion timestamp
+- **Filter in queries**: Always filter out soft-deleted records in application queries unless specifically needed
+
+## Indexing Strategy
+
+- **Primary keys**: Automatic UUID primary key index
+- **Foreign keys**: Index all foreign key fields for performance
+- **Soft deletes**: Create partial index on `deleted_at IS NULL` for active records
+- **Timestamps**: Index `created_at` and `updated_at` for common time-based queries
+
+## Schema File Structure
+
+Define your tables in schema files (e.g., `supabase/schemas/table_name.sql`):
+
+```sql
+-- supabase/schemas/table_name.sql
+
+-- Create table
+CREATE TABLE table_name (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- business fields here
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL
+);
+
+-- Create indexes
+CREATE INDEX idx_table_name_deleted_at ON table_name (id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_table_name_created_at ON table_name (created_at);
+
+-- Add RLS policies if needed
+ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
+```
+
+**Note**: After editing schema files, run `pnpm supabase:diff` to generate the migration.
+
+## Examples
+
+### Good Table Definition
+
+```sql
+CREATE TABLE user_profile (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES auth.users(id),
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    favourite_colour TEXT,
+    status user_status NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL
+);
+
+CREATE TYPE user_status AS ENUM ('ACTIVE', 'SUSPENDED', 'PENDING');
+```
+
+### Good Foreign Key Reference
+
+```sql
+CREATE TABLE order_item (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id UUID NOT NULL REFERENCES order(id),
+    product_id UUID NOT NULL REFERENCES product(id),
+    quantity INTEGER NOT NULL,
+    unit_price_pence INTEGER NOT NULL, -- Price in pence
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ NULL
+);
+```
+
+## Schema Management Best Practices
+
+- **Declarative schemas**: Define the desired state of your database in schema files
+- **Auto-generated migrations**: Use `pnpm supabase:diff` to generate migrations from schema changes
+- **Review before committing**: Always review the auto-generated migration to ensure it matches your intent
+- **Test migrations**: Test generated migrations on development data before applying to production
+- **Keep schemas organized**: Organize schema files logically (one file per table or related group)
+- **Comments**: Add comments in schema files explaining complex business logic or constraints
+- **Never manual migrations**: Do not create or edit migration files manually - always generate them from schemas

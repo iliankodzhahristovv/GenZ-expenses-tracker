@@ -1,0 +1,329 @@
+# API Routes and Server Actions
+
+## When to Use API Routes vs Server Actions
+
+### Use API Routes For:
+
+- **ALL GET requests** for data fetching
+  - GET requests are cached by SWR on the client
+  - Lightweight, stateless data retrieval operations
+  - Resource-based endpoints (e.g., `/api/projects/[projectId]`)
+- **Public or external endpoints**
+  - APIs that might be called from webhooks or external services
+  - Endpoints requiring custom authentication or middleware
+- **Simple data queries**
+  - Single service call with mapper transformation
+  - Read operations that don't require complex business logic
+
+### Use Server Actions For:
+
+- **POST/PUT/DELETE operations** that mutate data
+  - Creating, updating, or deleting resources
+  - Complex data mutations requiring transactions
+- **Heavy computational tasks**
+  - AI processing and generation
+  - Large data transformations
+  - Complex business logic requiring multiple service calls
+- **File operations**
+  - File uploads
+  - Streaming responses
+  - Image processing
+
+## API Route Structure
+
+### File Organization
+
+- Location: `app/api/` directory
+- File naming: `route.ts` (Next.js convention)
+- Path structure mirrors resource hierarchy: `app/api/projects/[projectId]/rooms/route.ts`
+
+### Standard Response Format
+
+All API routes MUST return the `DataResponse<T>` format:
+
+```typescript
+// Success response
+{
+  success: true,
+  data: T
+}
+
+// Error response
+{
+  success: false,
+  error: string
+}
+```
+
+### Standard API Route Pattern
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { container } from "@/lib/container-config";
+import { ServiceName } from "@/modules/domain";
+import { DomainId } from "@/modules/common";
+import { EntityUIMapper } from "@/mappers";
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await params;
+    const domainId = new DomainId(id);
+
+    const service = await container.getAsync(ServiceName);
+    const result = await service.method(domainId);
+
+    const resultUI = EntityUIMapper.fromDomain(result);
+
+    return NextResponse.json({
+      success: true,
+      data: resultUI,
+    });
+  } catch (error) {
+    console.error("Error fetching entity:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch entity",
+      },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Key Principles
+
+1. **Use dependency injection**: Always use `container.getAsync()` to get services
+2. **Use mappers**: Convert domain models to UI models using mappers
+3. **Handle errors**: Wrap in try/catch and return proper error responses
+4. **Validate inputs**: Convert route params to domain value objects
+5. **Return proper status codes**: 200 for success, 500 for errors, 401/403 for auth
+
+## User-Scoped Routes with Impersonation
+
+For routes that fetch data for a specific user and support admin impersonation:
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import { container } from "@/lib/container-config";
+import { ProjectService } from "@/modules/projects";
+import { ProjectUIMapper } from "@/mappers";
+import { withImpersonation } from "@/lib/api-middleware";
+
+export const GET = withImpersonation(async (request: NextRequest, context) => {
+  try {
+    const { effectiveUserId } = context.impersonation;
+
+    const projectService = await container.getAsync(ProjectService);
+    const projects = await projectService.getUserProjects(effectiveUserId);
+
+    const projectsUI = ProjectUIMapper.fromDomainArray(projects);
+
+    return NextResponse.json({
+      success: true,
+      data: projectsUI,
+    });
+  } catch (error) {
+    console.error("Error fetching user projects:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to fetch projects",
+      },
+      { status: 500 }
+    );
+  }
+});
+```
+
+### withImpersonation HOC
+
+The `withImpersonation` higher-order function provides:
+
+- **Automatic authentication**: Checks if user is logged in
+- **Admin validation**: Verifies admin status if `?impersonate=userId` query param is present
+- **effectiveUserId**: The user ID to use for queries (impersonated or authenticated user)
+- **Context properties**:
+  - `effectiveUserId: UserId` - Use this for all service calls
+  - `isImpersonating: boolean` - Whether admin is impersonating
+  - `authenticatedUserId: UserId` - The actual logged-in admin's ID
+
+### When to Use withImpersonation
+
+- Routes under `/api/user/*` that fetch current user's data
+- Any route where admin should be able to view data as another user
+- User-specific resource endpoints
+
+### When NOT to Use withImpersonation
+
+- Admin-only routes with explicit userId in path (e.g., `/api/admin/users/[userId]/projects`)
+- Public endpoints without authentication
+- Routes that don't have a concept of "current user"
+
+## Admin-Only Routes
+
+For routes requiring admin access:
+
+```typescript
+export async function GET(request: NextRequest) {
+  try {
+    const authService = await container.getAsync(AuthService);
+    const isAdmin = await authService.isAdmin();
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    // ... rest of logic
+  } catch (error) {
+    // ... error handling
+  }
+}
+```
+
+## Client-Side Consumption
+
+### Use API Fetchers
+
+ALWAYS use the API fetcher utilities from `@/lib/api-fetcher`:
+
+```typescript
+import { apiFetcher, apiPost, apiPut, apiDelete } from "@/lib/api-fetcher";
+
+// GET requests
+const data = await apiFetcher<DataType>("/api/resource");
+
+// POST requests
+const result = await apiPost<ResultType>("/api/resource", bodyData);
+
+// PUT requests
+const updated = await apiPut<UpdatedType>("/api/resource/id", bodyData);
+
+// DELETE requests
+await apiDelete("/api/resource/id");
+```
+
+**NEVER** use direct `fetch()` calls to `/api/*` routes in hooks or components.
+
+### Custom Hooks with SWR
+
+Wrap API calls in custom hooks using SWR:
+
+```typescript
+import useSWR from "swr";
+import { apiFetcher } from "@/lib/api-fetcher";
+import { SWR_KEYS } from "@/lib/constants";
+
+const fetchResource = async (id: string): Promise<ResourceType> => {
+  return apiFetcher<ResourceType>(`/api/resources/${id}`);
+};
+
+export const useResource = (id: string | null) => {
+  const { data, error, isLoading, mutate } = useSWR(
+    id ? [SWR_KEYS.RESOURCE, id] : null,
+    ([, resourceId]) => fetchResource(resourceId),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 30000,
+    }
+  );
+
+  return {
+    resource: data || null,
+    loading: isLoading,
+    error: error?.message || null,
+    refetch: mutate,
+  };
+};
+```
+
+### Including Impersonation in Cache Keys
+
+For hooks that call user-scoped routes, include the impersonated user ID in the SWR cache key:
+
+```typescript
+import { StorageKeys } from "@/lib/api-fetcher";
+
+const impersonatedUserId =
+  typeof window !== "undefined" ? localStorage.getItem(StorageKeys.IMPERSONATED_USER_ID) : null;
+
+const swrKey = userId ? [SWR_KEYS.USER_DATA, userId, impersonatedUserId] : null;
+```
+
+This ensures the cache is invalidated when switching between users during impersonation.
+
+## Migration from Server Actions
+
+When converting existing server actions to API routes:
+
+1. Create the API route file: `app/api/resource/route.ts`
+2. Extract the service logic from the action
+3. Add proper error handling and response format
+4. Create or update the custom hook to use `apiFetcher`
+5. Update components to use the custom hook
+6. Remove the old server action (if no longer needed)
+
+## Examples
+
+### Simple GET Route
+
+```typescript
+// app/api/projects/[projectId]/totals/route.ts
+export async function GET(request: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
+  try {
+    const { projectId } = await params;
+    const projectIdDomain = new ProjectId(projectId);
+
+    const projectService = await container.getAsync(ProjectService);
+    const totals = await projectService.calculateProjectTotals(projectIdDomain);
+
+    return NextResponse.json({
+      success: true,
+      data: totals,
+    });
+  } catch (error) {
+    console.error("Error calculating project totals:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
+      },
+      { status: 500 }
+    );
+  }
+}
+```
+
+### Corresponding Hook
+
+```typescript
+// hooks/projects/useProjectTotals.ts
+import useSWR from "swr";
+import { apiFetcher } from "@/lib/api-fetcher";
+import { SWR_KEYS } from "@/lib/constants";
+
+const fetchProjectTotals = async (projectId: string): Promise<ProjectTotalsUI> => {
+  return apiFetcher<ProjectTotalsUI>(`/api/projects/${projectId}/totals`);
+};
+
+export const useProjectTotals = (projectId: string | null) => {
+  const {
+    data: totals,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR(projectId ? [SWR_KEYS.PROJECT_TOTALS, projectId] : null, ([, id]) => fetchProjectTotals(id), {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 30000,
+  });
+
+  return {
+    totals: totals || null,
+    loading: isLoading,
+    error: error?.message || null,
+    refetch: mutate,
+  };
+};
+```

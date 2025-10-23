@@ -1,0 +1,37 @@
+---
+alwaysApply: true
+description: Constants, configuration, and package management
+---
+
+# Constants and Configuration
+
+## Constants Management
+
+- Use the [lib/constants.ts](mdc:lib/constants.ts) file for URL route names and SWR query keys
+- Check if a route matches by creating arrays and using `includes()` instead of chaining comparisons with `||` operator
+- Define all constants in the constants file, not inline in components
+
+## SWR Query Keys
+
+- All SWR query keys must be defined in `SWR_KEYS` constant object
+- Use descriptive, kebab-case names for query keys
+- Include parameters in query key arrays: `[SWR_KEYS.KEY_NAME, ...params]`
+
+## Package Management
+
+- Use only pnpm as the package manager for all operations
+- Never use npm or yarn commands
+- Use `pnpm add`, `pnpm install`, `pnpm run` for all package operations
+
+## Configuration Files
+
+- Keep configuration files in the `lib/` directory
+- Use TypeScript for configuration files when possible
+- Export configuration objects with proper typing
+- Use environment variables for environment-specific configuration
+
+## Route Management
+
+- Define all routes in the `ROUTES` constant object
+- Use route functions for dynamic routes (e.g., `ROUTES.PROJECT_DETAIL(projectId)`)
+- Follow consistent naming patterns for routes

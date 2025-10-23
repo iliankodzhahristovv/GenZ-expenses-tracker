@@ -1,0 +1,32 @@
+---
+alwaysApply: true
+description: Development workflow and code reuse patterns
+---
+
+# Development Workflow and Code Reuse
+
+## Search Before Creating
+
+- **Before creating any new component, function, type, or hook, always search the codebase first** to check if similar functionality already exists that could be reused or extended
+- Use `codebase_search` and `grep` tools to find existing implementations with similar functionality
+- Look for:
+  - Similar components that could be extended or made more generic
+  - Existing hooks that handle similar data fetching or state management
+  - Utility functions that perform similar operations
+  - Types or interfaces that could be reused or extended
+- Only create new code if no suitable existing alternative is found
+- This prevents code duplication and maintains consistency across the codebase
+
+## Code Reuse Strategies
+
+- Prefer extending existing components with additional props over creating new ones
+- Extract common functionality into shared utilities or hooks
+- Use composition patterns to build complex components from simpler ones
+- Consider making existing components more generic rather than creating specialized versions
+
+## Documentation and Discovery
+
+- Use descriptive names that make components and functions discoverable
+- Group related functionality in appropriate directories
+- Keep the codebase organized so existing functionality is easy to find
+- Document complex reusable components with clear examples

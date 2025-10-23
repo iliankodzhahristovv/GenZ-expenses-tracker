@@ -1,0 +1,51 @@
+---
+alwaysApply: true
+description: Repository pattern and dependency injection architecture
+---
+
+# Repository Pattern and Dependency Injection
+
+## Repository Architecture
+
+- When communicating with Supabase client and database, always use repositories for specific domains
+- Repositories must have abstract classes/interfaces and concrete implementations
+- All repositories must be injectable using Inversify dependency injection
+- Repository implementations should be bound in the appropriate module
+
+## Repository Structure
+
+- Repository interfaces should be in `domain/repositories/` directory
+- Repository implementations should be in `data/repositories/` directory
+- Use the naming pattern: `{Entity}Repository` for interfaces, `Supabase{Entity}Repository` for implementations
+
+## Service Layer
+
+- Services should use repositories through dependency injection
+- Services must be injectable and bound with `toSelf().inSingletonScope()` in modules
+- Services should contain business logic and orchestrate repository calls
+- Services should be in `domain/services/` directory
+
+## Module Registration
+
+- Each domain module should have a `{Module}Module` class
+- Modules should register repositories and services in the Inversify container
+- Use the pattern: `container.bind(RepositoryInterface).to(RepositoryImplementation)`
+- Services should be bound with `container.bind(ServiceClass).toSelf().inSingletonScope()`
+
+## AI Service Integration
+
+- AI services should use the Vercel AI package (`ai` and `@ai-sdk/openai`)
+- AI services should be injectable and follow the same patterns as other services
+- Use `generateObject` from the `ai` package for structured AI responses
+- AI services should be in the `domain/services/` directory
+- AI repositories should handle the actual AI API calls
+
+## Clean Architecture Layers
+
+- Follow clean architecture principles with separate layers:
+  - Domain models (value objects, entities)
+  - Repository interfaces (domain layer)
+  - Repository implementations (data layer)
+  - Services (domain layer)
+  - AI services (domain layer)
+  - UI models and mappers (presentation layer)

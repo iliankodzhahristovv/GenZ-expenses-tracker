@@ -1,0 +1,37 @@
+---
+description: AI communication patterns using Vercel AI package
+---
+
+# AI Communication Rules
+
+## Vercel AI Package Usage
+
+- Use the Vercel AI package (`ai` and `@ai-sdk/openai`) for all AI communication
+- Never use LangGraph or other AI communication libraries
+- Follow the established patterns in the AI service layer
+
+## AI Service Architecture
+
+- AI services should be injectable using Inversify dependency injection
+- AI services should be in the `modules/ai/domain/services/` directory
+- AI repositories should handle the actual AI API calls
+- Use the `AIService` class as the main interface for AI operations
+
+## AI Communication Patterns
+
+- Use `generateObject` from the `ai` package for structured AI responses
+- Use `createOpenAI` from `@ai-sdk/openai` for OpenAI integration
+- Use appropriate temperature and token limits for different use cases
+
+## API Route Integration
+
+- AI communication should primarily happen through server actions
+- API routes should use the AI service through dependency injection
+- Map AI responses to appropriate UI models using mappers
+- Handle streaming responses when appropriate
+
+## Configuration
+
+- Use environment variables for AI API keys
+- Configure appropriate models and parameters per use case
+- Use consistent prompt engineering patterns across the application
