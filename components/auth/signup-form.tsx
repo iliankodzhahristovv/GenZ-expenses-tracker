@@ -26,25 +26,21 @@ export function SignUpForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🔵 Form submitted!", { email, password, firstName, lastName });
     clearError();
     setValidationError(null);
 
     // Validate passwords match
     if (password !== confirmPassword) {
-      console.log("❌ Passwords do not match");
       setValidationError("Passwords do not match");
       return;
     }
 
     // Validate password length
     if (password.length < 6) {
-      console.log("❌ Password too short");
       setValidationError("Password must be at least 6 characters");
       return;
     }
 
-    console.log("🟡 Calling signUp function...");
     const success = await signUp({
       email,
       password,
@@ -52,10 +48,7 @@ export function SignUpForm() {
       lastName: lastName || undefined,
     });
 
-    console.log("✅ SignUp result:", success);
-
     if (success) {
-      console.log("🟢 Redirecting to home...");
       router.push(ROUTES.HOME);
     }
   };

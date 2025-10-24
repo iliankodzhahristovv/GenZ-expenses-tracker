@@ -46,10 +46,10 @@ BEGIN
     NEW.id,
     NEW.email,
     COALESCE(
-      NEW.raw_user_meta_data->>'firstName' || ' ' || NEW.raw_user_meta_data->>'lastName',
+      NULLIF(CONCAT_WS(' ', NEW.raw_user_meta_data->>'firstName', NEW.raw_user_meta_data->>'lastName'), ''),
       NEW.raw_user_meta_data->>'firstName',
       NEW.raw_user_meta_data->>'lastName',
-      NEW.raw_user_meta_data->>'first_name' || ' ' || NEW.raw_user_meta_data->>'last_name',
+      NULLIF(CONCAT_WS(' ', NEW.raw_user_meta_data->>'first_name', NEW.raw_user_meta_data->>'last_name'), ''),
       NEW.raw_user_meta_data->>'first_name',
       NEW.raw_user_meta_data->>'last_name',
       NEW.email

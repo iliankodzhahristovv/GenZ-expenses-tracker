@@ -129,7 +129,6 @@ export function UserProvider({ children, initialUser = null }: UserProviderProps
       
       // For now, just simulate a refresh
       await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log("User refreshed");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to refresh user";
       setError(errorMessage);

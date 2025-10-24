@@ -1,5 +1,6 @@
 import { injectable } from "inversify";
 import { createClient } from "../../../../lib/supabase/server";
+import { createBrowserClient } from "@supabase/ssr";
 import {
   AuthRepository,
   SignInCredentials,
@@ -37,7 +38,17 @@ export class SupabaseAuthRepository extends AuthRepository {
     }
 
     // Get user profile for complete information
-    const { data: profile } = await supabase.from("users").select("*").eq("id", data.user.id).single();
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error(
+        `Failed to fetch user profile: ${profileError?.message || "Profile not found"}. User ID: ${data.user.id}`
+      );
+    }
 
     return AuthMapper.sessionToDomain(data.session as Session, profile as UserEntity);
   }

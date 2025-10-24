@@ -61,7 +61,7 @@ begin
     new.id,
     new.email,
     coalesce(
-      new.raw_user_meta_data->>'first_name' || ' ' || new.raw_user_meta_data->>'last_name',
+      nullif(concat_ws(' ', new.raw_user_meta_data->>'first_name', new.raw_user_meta_data->>'last_name'), ''),
       new.raw_user_meta_data->>'first_name',
       new.raw_user_meta_data->>'last_name',
       new.email

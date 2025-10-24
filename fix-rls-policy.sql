@@ -4,16 +4,11 @@
 -- Drop the existing insert policy
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.users;
 
--- Create a new policy that works with the trigger
--- The trigger runs with SECURITY DEFINER so it needs special handling
+-- Create a secure policy that works with the trigger
+-- The trigger runs with SECURITY DEFINER (service_role) so it can insert any row
+-- Regular users can only insert rows where id matches their auth.uid()
 CREATE POLICY "Enable insert for authenticated users and service role" 
 ON public.users
 FOR INSERT 
-WITH CHECK (true);
-
--- Alternative: If you want stricter security, use this instead:
--- CREATE POLICY "Enable insert for authenticated users" 
--- ON public.users
--- FOR INSERT 
--- WITH CHECK (auth.uid() = id OR auth.role() = 'service_role');
+WITH CHECK (auth.role() = 'service_role' OR id = auth.uid());
 

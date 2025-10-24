@@ -418,13 +418,13 @@ export class AuthService {
 
 | Action | Description | Returns |
 |--------|-------------|---------|
-| `signInWithPasswordAction` | Sign in with email/password | `DataResponse<AuthSessionUI>` |
-| `signUpWithPasswordAction` | Sign up new user | `DataResponse<AuthSessionUI>` |
+| `signInWithPasswordAction` | Sign in with email/password | `ApiResponse<AuthSessionUI>` |
+| `signUpWithPasswordAction` | Sign up new user | `ApiResponse<AuthSessionUI>` |
 | `signOutAction` | Sign out current user | `void` |
-| `getCurrentUserAction` | Get current user profile | `DataResponse<UserUI \| null>` |
-| `getCurrentSessionAction` | Get current session | `DataResponse<AuthSessionUI \| null>` |
-| `requireAuthenticationAction` | Require auth (redirects if not) | `DataResponse<UserUI>` |
-| `isAuthenticatedAction` | Check if authenticated | `DataResponse<boolean>` |
+| `getCurrentUserAction` | Get current user profile | `ApiResponse<UserUI \| null>` |
+| `getCurrentSessionAction` | Get current session | `ApiResponse<AuthSessionUI \| null>` |
+| `requireAuthenticationAction` | Require auth (redirects if not) | `ApiResponse<UserUI>` |
+| `isAuthenticatedAction` | Check if authenticated | `ApiResponse<boolean>` |
 
 ### Hooks
 

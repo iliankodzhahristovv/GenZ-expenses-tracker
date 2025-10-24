@@ -4,11 +4,12 @@
 
 /**
  * Generic API response type
+ * Used for both API endpoints and server actions
  */
 export interface ApiResponse<T> {
+  success: boolean;
   data?: T;
   error?: string;
-  success: boolean;
 }
 
 /**
@@ -45,26 +46,18 @@ export interface BaseEntity {
 }
 
 /**
- * Data response type for server actions
+ * Builder for creating ApiResponse objects
+ * Provides convenience methods for success/failure responses
  */
-export interface DataResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-/**
- * Builder for creating DataResponse objects
- */
-export class DataResponseBuilder {
-  static success<T>(data: T): DataResponse<T> {
+export class ApiResponseBuilder {
+  static success<T>(data: T): ApiResponse<T> {
     return {
       success: true,
       data,
     };
   }
 
-  static failure<T>(error: string): DataResponse<T> {
+  static failure<T>(error: string): ApiResponse<T> {
     return {
       success: false,
       error,

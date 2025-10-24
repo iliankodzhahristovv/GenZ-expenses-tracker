@@ -23,8 +23,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // Redirect to login if not authenticated
+    // Only redirect if we're sure there's no user (not loading and mounted)
     if (mounted && !loading && !user) {
-      router.push(ROUTES.LOGIN);
+      // Add a small delay to allow SWR to fetch fresh data after login
+      const timeoutId = setTimeout(() => {
+        router.push(ROUTES.LOGIN);
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
   }, [user, loading, mounted, router]);
 

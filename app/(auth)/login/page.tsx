@@ -23,17 +23,19 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🔵 Login submitted!", { email });
     clearError();
 
-    console.log("🟡 Calling signIn function...");
-    const success = await signIn(email, password);
+    try {
+      const success = await signIn(email, password);
 
-    console.log("✅ SignIn result:", success);
-
-    if (success) {
-      console.log("🟢 Redirecting to dashboard...");
-      router.push(ROUTES.DASHBOARD);
+      if (success) {
+        // Small delay to ensure session is saved
+        await new Promise(resolve => setTimeout(resolve, 500));
+        router.push(ROUTES.DASHBOARD);
+        router.refresh(); // Force a refresh to update the session
+      }
+    } catch (err) {
+      console.error("Login error:", err);
     }
   };
 
@@ -76,7 +78,8 @@ export default function LoginPage() {
               </div>
 
               {error && (
-                <div className="text-sm text-destructive text-center bg-destructive/10 p-3 rounded-md">
+                <div className="text-sm text-destructive text-center bg-destructive/10 p-3 rounded-md border border-destructive/20">
+                  <strong>Login Error:</strong><br />
                   {error}
                 </div>
               )}

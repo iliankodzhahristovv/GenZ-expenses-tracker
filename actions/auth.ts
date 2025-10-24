@@ -2,8 +2,8 @@
 
 import { container } from "@/lib/container-config";
 import { AuthService, type SignInCredentials, type SignUpCredentials } from "@/modules/auth";
-import type { DataResponse } from "@/types/common.types";
-import { DataResponseBuilder } from "@/types/common.types";
+import type { ApiResponse } from "@/types/common.types";
+import { ApiResponseBuilder } from "@/types/common.types";
 import { UserUIMapper, AuthUIMapper } from "@/mappers";
 import type { UserUI, AuthSessionUI } from "@/models";
 import { redirect } from "next/navigation";
@@ -14,15 +14,15 @@ import { ROUTES } from "@/lib/constants";
  */
 export async function signInWithPasswordAction(
   credentials: SignInCredentials
-): Promise<DataResponse<AuthSessionUI>> {
+): Promise<ApiResponse<AuthSessionUI>> {
   try {
     const authService = await container.getAsync(AuthService);
     const session = await authService.signInWithPassword(credentials);
 
     const uiSession = AuthUIMapper.sessionFromDomain(session);
-    return DataResponseBuilder.success(uiSession);
+    return ApiResponseBuilder.success(uiSession);
   } catch (error) {
-    return DataResponseBuilder.failure(error instanceof Error ? error.message : "Sign in failed");
+    return ApiResponseBuilder.failure(error instanceof Error ? error.message : "Sign in failed");
   }
 }
 
@@ -31,15 +31,15 @@ export async function signInWithPasswordAction(
  */
 export async function signUpWithPasswordAction(
   credentials: SignUpCredentials
-): Promise<DataResponse<AuthSessionUI>> {
+): Promise<ApiResponse<AuthSessionUI>> {
   try {
     const authService = await container.getAsync(AuthService);
     const session = await authService.signUpWithPassword(credentials);
 
     const uiSession = AuthUIMapper.sessionFromDomain(session);
-    return DataResponseBuilder.success(uiSession);
+    return ApiResponseBuilder.success(uiSession);
   } catch (error) {
-    return DataResponseBuilder.failure(error instanceof Error ? error.message : "Sign up failed");
+    return ApiResponseBuilder.failure(error instanceof Error ? error.message : "Sign up failed");
   }
 }
 
@@ -58,47 +58,47 @@ export async function signOutAction(): Promise<void> {
 /**
  * Get the current authenticated user
  */
-export async function getCurrentUserAction(): Promise<DataResponse<UserUI | null>> {
+export async function getCurrentUserAction(): Promise<ApiResponse<UserUI | null>> {
   try {
     const authService = await container.getAsync(AuthService);
     const userProfile = await authService.getCurrentUserProfile();
 
     if (!userProfile) {
-      return DataResponseBuilder.success(null);
+      return ApiResponseBuilder.success(null);
     }
 
     const uiUser = UserUIMapper.fromDomain(userProfile);
-    return DataResponseBuilder.success(uiUser);
+    return ApiResponseBuilder.success(uiUser);
   } catch (error) {
     console.error("Error getting current user:", error);
-    return DataResponseBuilder.failure(error instanceof Error ? error.message : "Failed to get current user");
+    return ApiResponseBuilder.failure(error instanceof Error ? error.message : "Failed to get current user");
   }
 }
 
 /**
  * Get the current session
  */
-export async function getCurrentSessionAction(): Promise<DataResponse<AuthSessionUI | null>> {
+export async function getCurrentSessionAction(): Promise<ApiResponse<AuthSessionUI | null>> {
   try {
     const authService = await container.getAsync(AuthService);
     const session = await authService.getCurrentSession();
 
     if (!session) {
-      return DataResponseBuilder.success(null);
+      return ApiResponseBuilder.success(null);
     }
 
     const uiSession = AuthUIMapper.sessionFromDomain(session);
-    return DataResponseBuilder.success(uiSession);
+    return ApiResponseBuilder.success(uiSession);
   } catch (error) {
     console.error("Error getting current session:", error);
-    return DataResponseBuilder.failure(error instanceof Error ? error.message : "Failed to get current session");
+    return ApiResponseBuilder.failure(error instanceof Error ? error.message : "Failed to get current session");
   }
 }
 
 /**
  * Require authentication - redirects to login if not authenticated
  */
-export async function requireAuthenticationAction(): Promise<DataResponse<UserUI>> {
+export async function requireAuthenticationAction(): Promise<ApiResponse<UserUI>> {
   try {
     const authService = await container.getAsync(AuthService);
     await authService.requireAuthentication();
@@ -106,29 +106,29 @@ export async function requireAuthenticationAction(): Promise<DataResponse<UserUI
     const userProfile = await authService.getCurrentUserProfile();
     if (!userProfile) {
       redirect(ROUTES.LOGIN);
-      return DataResponseBuilder.failure("User profile not found");
+      return ApiResponseBuilder.failure("User profile not found");
     }
 
     const uiUser = UserUIMapper.fromDomain(userProfile);
-    return DataResponseBuilder.success(uiUser);
+    return ApiResponseBuilder.success(uiUser);
   } catch (error) {
     console.error("Authentication required:", error);
     redirect(ROUTES.LOGIN);
-    return DataResponseBuilder.failure("Authentication required");
+    return ApiResponseBuilder.failure("Authentication required");
   }
 }
 
 /**
  * Check if user is authenticated
  */
-export async function isAuthenticatedAction(): Promise<DataResponse<boolean>> {
+export async function isAuthenticatedAction(): Promise<ApiResponse<boolean>> {
   try {
     const authService = await container.getAsync(AuthService);
     const isAuth = await authService.isAuthenticated();
-    return DataResponseBuilder.success(isAuth);
+    return ApiResponseBuilder.success(isAuth);
   } catch (error) {
     console.error("Error checking authentication:", error);
-    return DataResponseBuilder.failure(error instanceof Error ? error.message : "Failed to check authentication");
+    return ApiResponseBuilder.failure(error instanceof Error ? error.message : "Failed to check authentication");
   }
 }
 

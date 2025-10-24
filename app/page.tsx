@@ -18,16 +18,11 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("🔵 Login submitted from home!", { email });
     clearError();
 
-    console.log("🟡 Calling signIn function...");
     const success = await signIn(email, password);
 
-    console.log("✅ SignIn result:", success);
-
     if (success) {
-      console.log("🟢 Redirecting to dashboard...");
       router.push(ROUTES.DASHBOARD);
     }
   };

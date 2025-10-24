@@ -14,7 +14,7 @@
 Since your first signup has an expired link, delete it:
 
 1. Go to **"Authentication"** → **"Users"** in Supabase
-2. Find the user with email `ilian.pavlinov@gmail.com`
+2. Find the user with email `user@example.com` (replace with your actual email)
 3. Click the **"..."** menu → **"Delete user"**
 
 ## Step 3: Delete from Users Table Too
