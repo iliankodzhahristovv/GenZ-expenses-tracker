@@ -25,17 +25,10 @@ export default function LoginPage() {
     e.preventDefault();
     clearError();
 
-    try {
-      const success = await signIn(email, password);
+    const success = await signIn(email, password);
 
-      if (success) {
-        // Small delay to ensure session is saved
-        await new Promise(resolve => setTimeout(resolve, 500));
-        router.push(ROUTES.DASHBOARD);
-        router.refresh(); // Force a refresh to update the session
-      }
-    } catch (err) {
-      console.error("Login error:", err);
+    if (success) {
+      router.push(ROUTES.DASHBOARD);
     }
   };
 

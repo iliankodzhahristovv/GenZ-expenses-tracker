@@ -106,7 +106,6 @@ export async function requireAuthenticationAction(): Promise<ApiResponse<UserUI>
     const userProfile = await authService.getCurrentUserProfile();
     if (!userProfile) {
       redirect(ROUTES.LOGIN);
-      return ApiResponseBuilder.failure("User profile not found");
     }
 
     const uiUser = UserUIMapper.fromDomain(userProfile);
@@ -114,7 +113,6 @@ export async function requireAuthenticationAction(): Promise<ApiResponse<UserUI>
   } catch (error) {
     console.error("Authentication required:", error);
     redirect(ROUTES.LOGIN);
-    return ApiResponseBuilder.failure("Authentication required");
   }
 }
 
