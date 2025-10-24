@@ -44,3 +44,31 @@ export interface BaseEntity {
   updatedAt: Date;
 }
 
+/**
+ * Data response type for server actions
+ */
+export interface DataResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
+ * Builder for creating DataResponse objects
+ */
+export class DataResponseBuilder {
+  static success<T>(data: T): DataResponse<T> {
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  static failure<T>(error: string): DataResponse<T> {
+    return {
+      success: false,
+      error,
+    };
+  }
+}
+

@@ -13,8 +13,8 @@ export class UserUIMapper {
       id: user.id,
       email: user.email,
       displayName: user.name || "Anonymous",
-      createdAt: user.createdAt.toLocaleDateString(),
-      updatedAt: user.updatedAt.toLocaleDateString(),
+      createdAt: user.createdAt ? user.createdAt.toLocaleDateString() : new Date().toLocaleDateString(),
+      updatedAt: user.updatedAt ? user.updatedAt.toLocaleDateString() : new Date().toLocaleDateString(),
     };
   }
 
