@@ -21,9 +21,18 @@ const signInMutation = async (key: string, { arg }: { arg: SignInCredentials }) 
   const response = await signInWithPasswordAction(arg);
 
   if (response.success) {
-    // Invalidate auth-related SWR caches
-    await mutate(SWR_KEYS.CURRENT_USER);
+    // Get the updated user immediately after sign in
+    const { getCurrentUserAction } = await import("@/actions/auth");
+    const userResponse = await getCurrentUserAction();
+    
+    // Update SWR cache with the actual user data
+    if (userResponse.success && userResponse.data) {
+      await mutate(SWR_KEYS.CURRENT_USER, userResponse.data, false);
+    }
+    
+    // Also invalidate session cache
     await mutate(SWR_KEYS.CURRENT_SESSION);
+    
     return response.data;
   } else {
     throw new Error(response.error || "Sign in failed");

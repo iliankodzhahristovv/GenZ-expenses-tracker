@@ -1,5 +1,6 @@
 import { injectable } from "inversify";
 import { createClient } from "../../../../lib/supabase/server";
+import { createBrowserClient } from "@supabase/ssr";
 import {
   AuthRepository,
   SignInCredentials,
@@ -37,7 +38,17 @@ export class SupabaseAuthRepository extends AuthRepository {
     }
 
     // Get user profile for complete information
-    const { data: profile } = await supabase.from("users").select("*").eq("id", data.user.id).single();
+    const { data: profile, error: profileError } = await supabase
+      .from("users")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      throw new Error(
+        `Failed to fetch user profile: ${profileError?.message || "Profile not found"}. User ID: ${data.user.id}`
+      );
+    }
 
     return AuthMapper.sessionToDomain(data.session as Session, profile as UserEntity);
   }
@@ -53,6 +64,8 @@ export class SupabaseAuthRepository extends AuthRepository {
         data: {
           first_name: credentials.firstName,
           last_name: credentials.lastName,
+          firstName: credentials.firstName,
+          lastName: credentials.lastName,
         },
       },
     });
@@ -61,8 +74,35 @@ export class SupabaseAuthRepository extends AuthRepository {
       throw new Error(`Sign up failed: ${error.message}`);
     }
 
-    if (!data.session || !data.user) {
-      throw new Error("Sign up failed: No session or user returned");
+    if (!data.user) {
+      throw new Error("Sign up failed: No user returned");
+    }
+
+    // Check if this is an existing user (Supabase returns user but with identities array)
+    // When email confirmation is enabled and user already exists, identities will be empty
+    if (data.user.identities && data.user.identities.length === 0) {
+      throw new Error("An account with this email already exists. Please sign in instead.");
+    }
+
+    // If email confirmation is required, session will be null
+    // In that case, create a minimal AuthSession for the pending user
+    if (!data.session) {
+      // User created but needs email confirmation
+      // Create a minimal UserModel for the response
+      const pendingUser: UserModel = {
+        id: data.user.id,
+        email: data.user.email || "",
+        name: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      
+      return new AuthSession(
+        pendingUser,
+        "", // No access token yet
+        "", // No refresh token yet
+        new Date() // Expires immediately since not confirmed
+      );
     }
 
     // The user profile should be created automatically by a trigger

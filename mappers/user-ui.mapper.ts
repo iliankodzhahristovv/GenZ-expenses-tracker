@@ -9,12 +9,20 @@ export class UserUIMapper {
    * Convert domain model to UI model
    */
   static fromDomain(user: User): UserUI {
+    // Log warnings for missing timestamps to detect data integrity issues
+    if (!user.createdAt) {
+      console.warn(`[UserUIMapper] Missing createdAt timestamp for user: ${user.id}`);
+    }
+    if (!user.updatedAt) {
+      console.warn(`[UserUIMapper] Missing updatedAt timestamp for user: ${user.id}`);
+    }
+
     return {
       id: user.id,
       email: user.email,
       displayName: user.name || "Anonymous",
-      createdAt: user.createdAt.toLocaleDateString(),
-      updatedAt: user.updatedAt.toLocaleDateString(),
+      createdAt: user.createdAt ? user.createdAt.toLocaleDateString() : "N/A",
+      updatedAt: user.updatedAt ? user.updatedAt.toLocaleDateString() : "N/A",
     };
   }
 
