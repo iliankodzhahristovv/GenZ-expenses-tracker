@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, DollarSign, FileText, Tag } from "lucide-react";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 interface Expense {
   id: string;
@@ -73,19 +75,58 @@ export default function ExpensesPage() {
   });
 
   const handleAddExpense = () => {
-    if (!newExpense.amount || !newExpense.description || !newExpense.category) {
+    // Trim and validate inputs
+    const trimmedDescription = newExpense.description.trim();
+    const trimmedAmount = newExpense.amount.trim();
+    
+    if (!trimmedDescription) {
+      toast.error("Description is required", {
+        description: "Please enter a description for this expense.",
+      });
       return;
     }
 
+    if (!newExpense.category) {
+      toast.error("Category is required", {
+        description: "Please select a category for this expense.",
+      });
+      return;
+    }
+
+    if (!trimmedAmount) {
+      toast.error("Amount is required", {
+        description: "Please enter an amount for this expense.",
+      });
+      return;
+    }
+
+    // Parse and validate amount
+    const parsedAmount = parseFloat(trimmedAmount);
+    
+    if (!isFinite(parsedAmount)) {
+      toast.error("Invalid amount", {
+        description: "Please enter a valid number for the amount.",
+      });
+      return;
+    }
+
+    if (parsedAmount <= 0) {
+      toast.error("Invalid amount", {
+        description: "Amount must be greater than zero.",
+      });
+      return;
+    }
+
+    // Create expense after validation
     const expense: Expense = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       date: newExpense.date,
-      amount: parseFloat(newExpense.amount),
-      description: newExpense.description,
+      amount: parsedAmount,
+      description: trimmedDescription,
       category: newExpense.category,
     };
 
-    setExpenses([expense, ...expenses]);
+    setExpenses((prev) => [expense, ...prev]);
     setNewExpense({
       date: new Date().toISOString().split('T')[0],
       amount: "",
@@ -93,12 +134,16 @@ export default function ExpensesPage() {
       category: "",
     });
     setIsDialogOpen(false);
+    toast.success("Expense added", {
+      description: `Added ${trimmedDescription} - $${parsedAmount.toFixed(2)}`,
+    });
   };
 
   const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   return (
     <ProtectedLayout>
+      <Toaster />
       <div className="p-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
           {/* Header with Add Button */}

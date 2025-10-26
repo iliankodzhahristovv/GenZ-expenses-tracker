@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useSignOut, useCurrentUser } from "@/hooks/auth";
 import { useRouter } from "next/navigation";
 import { ROUTES } from "@/lib/constants";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 /**
  * Settings Page
@@ -18,12 +20,20 @@ export default function SettingsPage() {
   const router = useRouter();
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push(ROUTES.HOME);
+    try {
+      await signOut();
+      router.push(ROUTES.HOME);
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      toast.error("Sign out failed", {
+        description: error instanceof Error ? error.message : "An unexpected error occurred. Please try again.",
+      });
+    }
   };
 
   return (
     <ProtectedLayout>
+      <Toaster />
       <div className="p-8">
         <div className="max-w-4xl mx-auto space-y-6">
           <div className="mb-6">

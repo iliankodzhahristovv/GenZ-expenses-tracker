@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Calendar, DollarSign, FileText, Tag } from "lucide-react";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 interface Income {
   id: string;
@@ -73,19 +75,58 @@ export default function IncomePage() {
   });
 
   const handleAddIncome = () => {
-    if (!newIncome.amount || !newIncome.description || !newIncome.category) {
+    // Trim and validate inputs
+    const trimmedDescription = newIncome.description.trim();
+    const trimmedAmount = newIncome.amount.trim();
+    
+    if (!trimmedDescription) {
+      toast.error("Description is required", {
+        description: "Please enter a description for this income.",
+      });
       return;
     }
 
+    if (!newIncome.category) {
+      toast.error("Category is required", {
+        description: "Please select a category for this income.",
+      });
+      return;
+    }
+
+    if (!trimmedAmount) {
+      toast.error("Amount is required", {
+        description: "Please enter an amount for this income.",
+      });
+      return;
+    }
+
+    // Parse and validate amount
+    const parsedAmount = parseFloat(trimmedAmount);
+    
+    if (!isFinite(parsedAmount)) {
+      toast.error("Invalid amount", {
+        description: "Please enter a valid number for the amount.",
+      });
+      return;
+    }
+
+    if (parsedAmount <= 0) {
+      toast.error("Invalid amount", {
+        description: "Amount must be greater than zero.",
+      });
+      return;
+    }
+
+    // Create income after validation
     const income: Income = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       date: newIncome.date,
-      amount: parseFloat(newIncome.amount),
-      description: newIncome.description,
+      amount: parsedAmount,
+      description: trimmedDescription,
       category: newIncome.category,
     };
 
-    setIncomeEntries([income, ...incomeEntries]);
+    setIncomeEntries((prev) => [income, ...prev]);
     setNewIncome({
       date: new Date().toISOString().split('T')[0],
       amount: "",
@@ -93,12 +134,16 @@ export default function IncomePage() {
       category: "",
     });
     setIsDialogOpen(false);
+    toast.success("Income added", {
+      description: `Added ${trimmedDescription} - $${parsedAmount.toFixed(2)}`,
+    });
   };
 
   const totalIncome = incomeEntries.reduce((sum, income) => sum + income.amount, 0);
 
   return (
     <ProtectedLayout>
+      <Toaster />
       <div className="p-6 bg-gray-50">
         <div className="max-w-5xl mx-auto">
           {/* Header with Add Button */}

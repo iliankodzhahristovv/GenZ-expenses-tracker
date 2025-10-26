@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ProtectedLayout } from "@/components/layout";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Send } from "lucide-react";
 
@@ -35,19 +35,19 @@ export default function ChatPage() {
     if (!input.trim()) return;
 
     const newMessage: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       content: input,
       role: "user",
       timestamp: new Date(),
     };
 
-    setMessages([...messages, newMessage]);
+    setMessages((prev) => [...prev, newMessage]);
     setInput("");
 
     // Simulate assistant response
     setTimeout(() => {
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         content: "This is a placeholder response. Connect your AI service here.",
         role: "assistant",
         timestamp: new Date(),
@@ -56,7 +56,7 @@ export default function ChatPage() {
     }, 1000);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -104,18 +104,22 @@ export default function ChatPage() {
         {/* Input Area */}
         <div className="border-t border-gray-100 bg-white">
           <div className="max-w-3xl mx-auto px-4 py-4">
-            <div className="flex items-center gap-2">
-              <Input
+            <div className="flex items-end gap-2">
+              <Textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Message your assistant..."
-                className="flex-1 rounded-full border-gray-200 focus:border-gray-300 focus:ring-0"
+                rows={1}
+                className="flex-1 rounded-2xl border-gray-200 focus:border-gray-300 focus:ring-0 min-h-[40px] max-h-[200px] resize-none overflow-y-auto py-2.5"
               />
               <Button
+                type="button"
                 onClick={handleSend}
                 disabled={!input.trim()}
-                className="rounded-full bg-black hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed h-10 w-10 p-0"
+                aria-label="Send message"
+                title="Send message"
+                className="rounded-full bg-black hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed h-10 w-10 p-0 flex-shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
