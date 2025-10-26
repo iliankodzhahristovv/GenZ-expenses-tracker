@@ -1,10 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { ProtectedLayout } from "@/components/layout";
+import { useCurrentUser } from "@/hooks/auth";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useCurrentUser, useSignOut } from "@/hooks/auth";
-import { ROUTES } from "@/lib/constants";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBag } from "lucide-react";
+
+// Mock data
+const spendingData = [
+  { day: "Day 6", amount: 800 },
+  { day: "Day 9", amount: 950 },
+  { day: "Day 12", amount: 1100 },
+  { day: "Day 15", amount: 1050 },
+  { day: "Day 18", amount: 1200 },
+  { day: "Day 21", amount: 1350 },
+  { day: "Day 24", amount: 1400 },
+  { day: "Day 27", amount: 1380 },
+  { day: "Day 30", amount: 1209 },
+];
+
+const transactions = [
+  { id: 1, merchant: "Google Workspace", category: "Software", amount: 109.00, icon: ShoppingBag, color: "bg-indigo-100 text-indigo-600" },
+  { id: 2, merchant: "LinkedIn Ads", category: "Marketing", amount: 850.00, icon: ShoppingBag, color: "bg-purple-100 text-purple-600" },
+  { id: 3, merchant: "Client Lunch", category: "Entertainment", amount: 153.00, icon: Coffee, color: "bg-pink-100 text-pink-600" },
+  { id: 4, merchant: "Office Depot", category: "Office Supplies", amount: 78.00, icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
+  { id: 5, merchant: "AWS", category: "Infrastructure", amount: 243.00, icon: ShoppingBag, color: "bg-green-100 text-green-600" },
+];
+
+const recurringCharges = [
+  { id: 1, merchant: "Slack Workspace", frequency: "Every month", amount: 180.00, daysLeft: 27 },
+  { id: 2, merchant: "Adobe Creative Cloud", frequency: "Every month", amount: 299.99, daysLeft: 10 },
+  { id: 3, merchant: "Office Rent", frequency: "Every month", amount: 2500.00, daysLeft: 15 },
+  { id: 4, merchant: "Insurance Premium", frequency: "Every 3 months", amount: 450.00, daysLeft: 7 },
+];
 
 /**
  * Dashboard Page
@@ -12,75 +44,243 @@ import { ROUTES } from "@/lib/constants";
  * Protected page - requires authentication
  */
 export default function DashboardPage() {
-  const { user, loading } = useCurrentUser();
-  const { signOut, loading: signingOut } = useSignOut();
-  const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    // Redirect to login if not authenticated
-    // Only redirect if we're sure there's no user (not loading and mounted)
-    if (mounted && !loading && !user) {
-      // Add a small delay to allow SWR to fetch fresh data after login
-      const timeoutId = setTimeout(() => {
-        router.push(ROUTES.LOGIN);
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [user, loading, mounted, router]);
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push(ROUTES.HOME);
-  };
-
-  if (loading || !mounted) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-600">Loading...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
+  const { user } = useCurrentUser();
+  const [hideGettingStarted, setHideGettingStarted] = useState(false);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-sm p-8">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Dashboard
-              </h1>
-              <p className="text-gray-600">
-                Welcome back, {user.displayName}!
-              </p>
+    <ProtectedLayout>
+      <div className="p-6 bg-gray-50">
+        <div className="max-w-[1600px] mx-auto">
+          <p className="text-sm text-gray-500 mb-6">Good evening, {user?.displayName?.split(" ")[0] || "User"}!</p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Sidebar */}
+            <div className="space-y-6">
+              {/* Getting Started Widget */}
+              {!hideGettingStarted && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Getting Started</CardTitle>
+                    <CardDescription>Ilian, let&apos;s finish setting up your account</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <Landmark className="h-4 w-4" />
+                      <span>Add an account</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <Target className="h-4 w-4" />
+                      <span>Customize categories</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <Target className="h-4 w-4" />
+                      <span>Create a goal</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      <span>Create a budget</span>
+                    </div>
+                    <button
+                      onClick={() => setHideGettingStarted(true)}
+                      className="text-sm text-blue-600 hover:text-blue-700 mt-2"
+                    >
+                      Hide this widget
+                    </button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Budget Widget */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Budget</CardTitle>
+                    <span className="text-sm text-gray-500">October 2025</span>
+                  </div>
+                  <Select defaultValue="expenses">
+                    <SelectTrigger className="w-full mt-2">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="expenses">Expenses</SelectItem>
+                      <SelectItem value="groceries">Groceries</SelectItem>
+                      <SelectItem value="entertainment">Entertainment</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <MapPin className="h-12 w-12 text-gray-300 mb-4" />
+                    <p className="text-sm text-gray-500 mb-2">You don&apos;t have a budget yet</p>
+                    <p className="text-xs text-gray-400 mb-4">
+                      We&apos;ll create one for you based on your spending history.
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Create my budget
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Credit Score Widget */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Credit score
+                    <span className="text-gray-400">ⓘ</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <CreditCard className="h-12 w-12 text-gray-300 mb-4" />
+                    <p className="text-sm font-semibold text-gray-900 mb-2">
+                      Turn on credit score tracking
+                    </p>
+                    <p className="text-xs text-gray-500 mb-4">
+                      Keep track of your credit score right in your dashboard.
+                    </p>
+                    <Button variant="outline" size="sm">
+                      Enable credit score
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-            <Button 
-              onClick={handleSignOut}
-              variant="outline"
-              disabled={signingOut}
-              className="hover:bg-red-50 hover:text-red-600 hover:border-red-300"
-            >
-              {signingOut ? "Signing out..." : "Sign Out"}
-            </Button>
-          </div>
-          <div className="border-t border-gray-200 pt-6">
-            <p className="text-sm text-gray-500">
-              This is your dashboard. Build something amazing here! 🚀
-            </p>
+
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Spending Chart */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">Spending</CardTitle>
+                      <p className="text-2xl font-semibold mt-1">$1,209.00 this month</p>
+                    </div>
+                    <div className="flex gap-2 text-xs text-gray-500">
+                      <button className="px-3 py-1 rounded-md hover:bg-gray-100">
+                        This month vs. last month
+                      </button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={spendingData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                      <XAxis dataKey="day" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="amount" stroke="#ff9999" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="amount" stroke="#999999" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-pink-200 rounded-full"></div>
+                      <span>Last month</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                      <span>This month</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* All Transactions */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">All transactions</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {transactions.map((transaction) => (
+                      <div
+                        key={transaction.id}
+                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${transaction.color}`}>
+                            <transaction.icon className="h-4 w-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{transaction.merchant}</p>
+                            <p className="text-xs text-gray-500">{transaction.category}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold">${transaction.amount.toFixed(2)}</span>
+                          <button className="text-gray-400 hover:text-gray-600">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recurring Charges */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">Recurring</CardTitle>
+                      <p className="text-sm text-gray-500 mt-1">$85.07 remaining due</p>
+                    </div>
+                    <button className="text-sm text-gray-500 hover:text-gray-700">This month</button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {recurringCharges.map((charge) => (
+                      <div
+                        key={charge.id}
+                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <span className="text-xs">💳</span>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{charge.merchant}</p>
+                            <p className="text-xs text-gray-500">{charge.frequency}</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">${charge.amount.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">in {charge.daysLeft} days</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Investments */}
+              <Card>
+                <CardContent className="py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm font-medium">$250,000 investments</span>
+                      <span className="text-sm text-green-600">→ $37.26 (0%)</span>
+                    </div>
+                    <span className="text-xs text-gray-500">Today</span>
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500">Top movers today</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ProtectedLayout>
   );
 }
 

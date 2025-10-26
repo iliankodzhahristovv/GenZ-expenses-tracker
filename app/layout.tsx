@@ -14,8 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Next.js Clean Architecture Template",
-  description: "A template for Next.js projects using clean architecture principles",
+  title: "Sidequest",
+  description: "Financial management for small business owners and startups",
+  icons: {
+    icon: [
+      {
+        url: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="5" y="70" font-size="45">🗺️</text><text x="50" y="70" font-size="45">🎒</text></svg>',
+        type: 'image/svg+xml',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
