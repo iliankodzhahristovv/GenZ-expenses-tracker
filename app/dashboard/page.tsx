@@ -11,15 +11,15 @@ import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBa
 
 // Mock data
 const spendingData = [
-  { day: "Day 6", amount: 800 },
-  { day: "Day 9", amount: 950 },
-  { day: "Day 12", amount: 1100 },
-  { day: "Day 15", amount: 1050 },
-  { day: "Day 18", amount: 1200 },
-  { day: "Day 21", amount: 1350 },
-  { day: "Day 24", amount: 1400 },
-  { day: "Day 27", amount: 1380 },
-  { day: "Day 30", amount: 1209 },
+  { day: "Day 6", currentMonth: 800, lastMonth: 750 },
+  { day: "Day 9", currentMonth: 950, lastMonth: 920 },
+  { day: "Day 12", currentMonth: 1100, lastMonth: 1050 },
+  { day: "Day 15", currentMonth: 1050, lastMonth: 1150 },
+  { day: "Day 18", currentMonth: 1200, lastMonth: 1180 },
+  { day: "Day 21", currentMonth: 1350, lastMonth: 1300 },
+  { day: "Day 24", currentMonth: 1400, lastMonth: 1420 },
+  { day: "Day 27", currentMonth: 1380, lastMonth: 1450 },
+  { day: "Day 30", currentMonth: 1209, lastMonth: 1380 },
 ];
 
 const transactions = [
@@ -60,7 +60,7 @@ export default function DashboardPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Getting Started</CardTitle>
-                    <CardDescription>Ilian, let&apos;s finish setting up your account</CardDescription>
+                    <CardDescription>{user?.displayName?.split(" ")[0] || "there"}, let&apos;s finish setting up your account</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     <div className="flex items-center gap-3 text-sm text-gray-600">
@@ -170,8 +170,8 @@ export default function DashboardPage() {
                       <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip />
-                      <Line type="monotone" dataKey="amount" stroke="#ff9999" strokeWidth={2} dot={false} />
-                      <Line type="monotone" dataKey="amount" stroke="#999999" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                      <Line type="monotone" dataKey="lastMonth" stroke="#ffc0cb" strokeWidth={2} dot={false} name="Last month" />
+                      <Line type="monotone" dataKey="currentMonth" stroke="#999999" strokeWidth={2} dot={false} name="This month" />
                     </LineChart>
                   </ResponsiveContainer>
                   <div className="flex items-center gap-4 mt-4 text-xs text-gray-500">
