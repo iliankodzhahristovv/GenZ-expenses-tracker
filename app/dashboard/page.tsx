@@ -9,8 +9,32 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBag } from "lucide-react";
 
+// Types
+interface SpendingPoint {
+  day: string;
+  currentMonth: number;
+  lastMonth: number;
+}
+
+interface Transaction {
+  id: number;
+  merchant: string;
+  category: string;
+  amount: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+}
+
+interface RecurringCharge {
+  id: number;
+  merchant: string;
+  frequency: string;
+  amount: number;
+  daysLeft: number;
+}
+
 // Mock data
-const spendingData = [
+const spendingData: SpendingPoint[] = [
   { day: "Day 6", currentMonth: 800, lastMonth: 750 },
   { day: "Day 9", currentMonth: 950, lastMonth: 920 },
   { day: "Day 12", currentMonth: 1100, lastMonth: 1050 },
@@ -22,7 +46,7 @@ const spendingData = [
   { day: "Day 30", currentMonth: 1209, lastMonth: 1380 },
 ];
 
-const transactions = [
+const transactions: Transaction[] = [
   { id: 1, merchant: "Google Workspace", category: "Software", amount: 109.00, icon: ShoppingBag, color: "bg-indigo-100 text-indigo-600" },
   { id: 2, merchant: "LinkedIn Ads", category: "Marketing", amount: 850.00, icon: ShoppingBag, color: "bg-purple-100 text-purple-600" },
   { id: 3, merchant: "Client Lunch", category: "Entertainment", amount: 153.00, icon: Coffee, color: "bg-pink-100 text-pink-600" },
@@ -30,7 +54,7 @@ const transactions = [
   { id: 5, merchant: "AWS", category: "Infrastructure", amount: 243.00, icon: ShoppingBag, color: "bg-green-100 text-green-600" },
 ];
 
-const recurringCharges = [
+const recurringCharges: RecurringCharge[] = [
   { id: 1, merchant: "Slack Workspace", frequency: "Every month", amount: 180.00, daysLeft: 27 },
   { id: 2, merchant: "Adobe Creative Cloud", frequency: "Every month", amount: 299.99, daysLeft: 10 },
   { id: 3, merchant: "Office Rent", frequency: "Every month", amount: 2500.00, daysLeft: 15 },
@@ -45,6 +69,11 @@ const recurringCharges = [
 export default function DashboardPage() {
   const { user } = useCurrentUser();
   const [hideGettingStarted, setHideGettingStarted] = useState(false);
+
+  const currentMonthYear = new Date().toLocaleString('default', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
 
   return (
     <ProtectedLayout>
@@ -94,7 +123,7 @@ export default function DashboardPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-base">Budget</CardTitle>
-                    <span className="text-sm text-gray-500">October 2025</span>
+                    <span className="text-sm text-gray-500">{currentMonthYear}</span>
                   </div>
                   <Select defaultValue="expenses">
                     <SelectTrigger className="w-full mt-2">
