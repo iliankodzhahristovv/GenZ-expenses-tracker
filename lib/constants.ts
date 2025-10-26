@@ -3,7 +3,12 @@ export const ROUTES = {
   HOME: "/",
   LOGIN: "/login",
   SIGNUP: "/signup",
+  GETTING_STARTED: "/getting-started",
   DASHBOARD: "/dashboard",
+  CHAT: "/chat",
+  EXPENSES: "/expenses",
+  INCOME: "/income",
+  SETTINGS: "/settings",
   USERS: "/users",
   
   // Add your app routes here
