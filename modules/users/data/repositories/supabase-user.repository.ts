@@ -68,12 +68,15 @@ export class SupabaseUserRepository extends UserRepository {
 
   async update(id: string, user: Partial<User>): Promise<User> {
     const supabase = await createClient();
+    const updateData: any = {};
+    
+    if (user.email !== undefined) updateData.email = user.email;
+    if (user.name !== undefined) updateData.name = user.name;
+    if (user.currency !== undefined) updateData.currency = user.currency;
+    
     const { data, error } = await supabase
       .from(this.tableName)
-      .update({
-        email: user.email,
-        name: user.name,
-      })
+      .update(updateData)
       .eq("id", id)
       .select()
       .single();

@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, DollarSign, FileText, Tag } from "lucide-react";
+import { Plus, Calendar, DollarSign, FileText, Tag, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
+import { useCurrentUser } from "@/hooks/auth";
+import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
 
 interface Income {
   id: string;
@@ -65,14 +67,19 @@ const getCategoryColor = (category: string) => {
  * Protected page - requires authentication
  */
 export default function IncomePage() {
+  const { user } = useCurrentUser();
   const [incomeEntries, setIncomeEntries] = useState<Income[]>(initialIncome);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [newIncome, setNewIncome] = useState({
     date: new Date().toISOString().split('T')[0],
     amount: "",
     description: "",
     category: "",
   });
+
+  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
 
   const handleAddIncome = () => {
     // Trim and validate inputs
@@ -139,19 +146,67 @@ export default function IncomePage() {
     });
   };
 
-  const totalIncome = incomeEntries.reduce((sum, income) => sum + income.amount, 0);
+  const handleEditIncome = () => {
+    if (!editingIncome) return;
+
+    // Validate inputs
+    const trimmedDescription = editingIncome.description.trim();
+    
+    if (!trimmedDescription) {
+      toast.error("Description is required", {
+        description: "Please enter a description for this income.",
+      });
+      return;
+    }
+
+    if (!editingIncome.category) {
+      toast.error("Category is required", {
+        description: "Please select a category for this income.",
+      });
+      return;
+    }
+
+    if (!isFinite(editingIncome.amount) || editingIncome.amount <= 0) {
+      toast.error("Invalid amount", {
+        description: "Amount must be greater than zero.",
+      });
+      return;
+    }
+
+    // Update income
+    setIncomeEntries((prev) =>
+      prev.map((inc) => (inc.id === editingIncome.id ? editingIncome : inc))
+    );
+    
+    setIsEditDialogOpen(false);
+    setEditingIncome(null);
+    toast.success("Income updated", {
+      description: `Updated ${trimmedDescription} - $${editingIncome.amount.toFixed(2)}`,
+    });
+  };
+
+  const openEditDialog = (income: Income) => {
+    setEditingIncome({ ...income });
+    setIsEditDialogOpen(true);
+  };
+
+  // Convert total income to user's currency
+  const totalIncomeInUserCurrency = incomeEntries.reduce((sum, income) => {
+    const convertedAmount = convertFromBaseCurrency(income.amount, user?.currency || "Dollar");
+    return sum + convertedAmount;
+  }, 0);
 
   return (
     <ProtectedLayout>
       <Toaster />
-      <div className="p-6 bg-gray-50">
+      <div className="p-6 bg-[#F7F7F7]">
         <div className="max-w-5xl mx-auto">
           {/* Header with Add Button */}
           <div className="mb-6 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Income</h1>
               <p className="text-sm text-gray-600 mt-1">
-                Total: ${totalIncome.toFixed(2)}
+                Total: {currencySymbol}{totalIncomeInUserCurrency.toFixed(2)}
               </p>
             </div>
             
@@ -171,36 +226,34 @@ export default function IncomePage() {
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid gap-2">
-                    <Label htmlFor="date">
-                      <Calendar className="h-4 w-4 inline mr-2" />
-                      Date
-                    </Label>
-                    <Input
-                      id="date"
-                      type="date"
-                      value={newIncome.date}
-                      onChange={(e) => setNewIncome({ ...newIncome, date: e.target.value })}
-                    />
+                    <Label htmlFor="date">Date</Label>
+                    <div className="relative">
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newIncome.date}
+                        onChange={(e) => setNewIncome({ ...newIncome, date: e.target.value })}
+                        className="[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      />
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="amount">
-                      <DollarSign className="h-4 w-4 inline mr-2" />
-                      Amount
-                    </Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={newIncome.amount}
-                      onChange={(e) => setNewIncome({ ...newIncome, amount: e.target.value })}
-                    />
+                    <Label htmlFor="amount">Amount</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
+                      <Input
+                        id="amount"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={newIncome.amount}
+                        onChange={(e) => setNewIncome({ ...newIncome, amount: e.target.value })}
+                        className="pl-7"
+                      />
+                    </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="description">
-                      <FileText className="h-4 w-4 inline mr-2" />
-                      Description
-                    </Label>
+                    <Label htmlFor="description">Description</Label>
                     <Input
                       id="description"
                       placeholder="What was this income for?"
@@ -209,10 +262,7 @@ export default function IncomePage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="category">
-                      <Tag className="h-4 w-4 inline mr-2" />
-                      Category
-                    </Label>
+                    <Label htmlFor="category">Category</Label>
                     <Select value={newIncome.category} onValueChange={(value) => setNewIncome({ ...newIncome, category: value })}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -237,6 +287,81 @@ export default function IncomePage() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
+            {/* Edit Income Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Edit Income</DialogTitle>
+                  <DialogDescription>
+                    Update the details of your income below.
+                  </DialogDescription>
+                </DialogHeader>
+                {editingIncome && (
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-date">Date</Label>
+                      <div className="relative">
+                        <Input
+                          id="edit-date"
+                          type="date"
+                          value={editingIncome.date}
+                          onChange={(e) => setEditingIncome({ ...editingIncome, date: e.target.value })}
+                          className="[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-amount">Amount</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
+                        <Input
+                          id="edit-amount"
+                          type="number"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={editingIncome.amount}
+                          onChange={(e) => setEditingIncome({ ...editingIncome, amount: parseFloat(e.target.value) || 0 })}
+                          className="pl-7"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-description">Description</Label>
+                      <Input
+                        id="edit-description"
+                        placeholder="What was this income for?"
+                        value={editingIncome.description}
+                        onChange={(e) => setEditingIncome({ ...editingIncome, description: e.target.value })}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="edit-category">Category</Label>
+                      <Select value={editingIncome.category} onValueChange={(value) => setEditingIncome({ ...editingIncome, category: value })}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button onClick={handleEditIncome} className="bg-black hover:bg-gray-800">
+                    Save Changes
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Income List */}
@@ -251,10 +376,12 @@ export default function IncomePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {incomeEntries.map((income) => (
+                  {incomeEntries.map((income) => {
+                    const displayAmount = convertFromBaseCurrency(income.amount, user?.currency || "Dollar");
+                    return (
                     <div
                       key={income.id}
-                      className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
+                      className="group flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
                     >
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-1">
@@ -271,13 +398,24 @@ export default function IncomePage() {
                           })}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-semibold text-green-600">
-                          +${income.amount.toFixed(2)}
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-green-600">
+                            +{currencySymbol}{displayAmount.toFixed(2)}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEditDialog(income)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

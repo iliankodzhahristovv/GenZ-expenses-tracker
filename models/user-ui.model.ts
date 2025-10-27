@@ -6,6 +6,7 @@ export interface UserUI {
   id: string;
   email: string;
   displayName: string;
+  currency: string;
   createdAt: string;
   updatedAt: string;
 }

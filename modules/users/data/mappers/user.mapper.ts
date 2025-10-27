@@ -13,6 +13,7 @@ export class UserMapper {
       id: entity.id,
       email: entity.email,
       name: entity.name,
+      currency: entity.currency || "Dollar",
       createdAt: new Date(entity.created_at),
       updatedAt: new Date(entity.updated_at),
     };
@@ -26,6 +27,7 @@ export class UserMapper {
       id: domain.id,
       email: domain.email,
       name: domain.name,
+      currency: domain.currency,
       created_at: domain.createdAt.toISOString(),
       updated_at: domain.updatedAt.toISOString(),
     };

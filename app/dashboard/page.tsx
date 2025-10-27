@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBag } from "lucide-react";
+import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
 
 // Types
 interface SpendingPoint {
@@ -75,9 +76,12 @@ export default function DashboardPage() {
     year: 'numeric' 
   });
 
+  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
+  const userCurrency = user?.currency || "Dollar";
+
   return (
     <ProtectedLayout>
-      <div className="p-6 bg-gray-50">
+      <div className="p-6 bg-[#F7F7F7]">
         <div className="max-w-[1600px] mx-auto">
           <p className="text-sm text-gray-500 mb-6">Good evening, {user?.displayName?.split(" ")[0] || "User"}!</p>
           
@@ -183,7 +187,9 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-base">Spending</CardTitle>
-                      <p className="text-2xl font-semibold mt-1">$1,209.00 this month</p>
+                      <p className="text-2xl font-semibold mt-1">
+                        {currencySymbol}{convertFromBaseCurrency(1209, userCurrency).toFixed(2)} this month
+                      </p>
                     </div>
                     <div className="flex gap-2 text-xs text-gray-500">
                       <button className="px-3 py-1 rounded-md hover:bg-gray-100">
@@ -225,7 +231,9 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {transactions.map((transaction) => (
+                    {transactions.map((transaction) => {
+                      const displayAmount = convertFromBaseCurrency(transaction.amount, userCurrency);
+                      return (
                       <div
                         key={transaction.id}
                         className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
@@ -240,13 +248,14 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold">${transaction.amount.toFixed(2)}</span>
+                          <span className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</span>
                           <button className="text-gray-400 hover:text-gray-600">
                             <X className="h-4 w-4" />
                           </button>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -257,14 +266,18 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="text-base">Recurring</CardTitle>
-                      <p className="text-sm text-gray-500 mt-1">$85.07 remaining due</p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {currencySymbol}{convertFromBaseCurrency(85.07, userCurrency).toFixed(2)} remaining due
+                      </p>
                     </div>
                     <button className="text-sm text-gray-500 hover:text-gray-700">This month</button>
                   </div>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {recurringCharges.map((charge) => (
+                    {recurringCharges.map((charge) => {
+                      const displayAmount = convertFromBaseCurrency(charge.amount, userCurrency);
+                      return (
                       <div
                         key={charge.id}
                         className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
@@ -279,11 +292,12 @@ export default function DashboardPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-sm font-semibold">${charge.amount.toFixed(2)}</p>
+                          <p className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</p>
                           <p className="text-xs text-gray-500">in {charge.daysLeft} days</p>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -294,8 +308,12 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium">$250,000 investments</span>
-                      <span className="text-sm text-green-600">→ $37.26 (0%)</span>
+                      <span className="text-sm font-medium">
+                        {currencySymbol}{convertFromBaseCurrency(250000, userCurrency).toFixed(0)} investments
+                      </span>
+                      <span className="text-sm text-green-600">
+                        → {currencySymbol}{convertFromBaseCurrency(37.26, userCurrency).toFixed(2)} (0%)
+                      </span>
                     </div>
                     <span className="text-xs text-gray-500">Today</span>
                   </div>
