@@ -1,3 +1,6 @@
+-- Enable pgcrypto extension for gen_random_uuid() function
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Create conversations table
 CREATE TABLE IF NOT EXISTS public.conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

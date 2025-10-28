@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { updateUserProfileAction } from "@/actions/users";
 import { getUserCategoriesAction, saveUserCategoriesAction } from "@/actions/categories";
 import { DEFAULT_CATEGORIES } from "@/lib/default-categories";
+import { APP_NAME } from "@/lib/constants";
 
 type SettingsTab = 
   | "profile" | "display" | "notifications" | "security"
@@ -32,7 +33,7 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSavingCurrency, setIsSavingCurrency] = useState(false);
-  const [currency, setCurrency] = useState(user?.currency || "Dollar");
+  const [currency, setCurrency] = useState(user?.currency || "USD");
   
   // Create/Edit Category Dialog State
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
@@ -168,15 +169,47 @@ export default function SettingsPage() {
     let updatedCategories;
 
     if (editingCategoryId) {
-      // Update existing category in state
-      updatedCategories = {
-        ...categories,
-        [categoryGroup]: categories[categoryGroup].map((cat) =>
-          cat.id === editingCategoryId
-            ? { ...cat, icon: categoryIcon, name: categoryName.trim() }
-            : cat
-        ),
+      // Find the category's current group
+      let currentGroup: string | null = null;
+      for (const group in categories) {
+        if (categories[group].some(cat => cat.id === editingCategoryId)) {
+          currentGroup = group;
+          break;
+        }
+      }
+
+      if (!currentGroup) {
+        // Category not found - handle gracefully
+        toast.error("Category not found", {
+          description: "The category you're trying to edit no longer exists.",
+        });
+        return;
+      }
+
+      const updatedCategory = {
+        id: editingCategoryId,
+        icon: categoryIcon,
+        name: categoryName.trim(),
       };
+
+      if (currentGroup === categoryGroup) {
+        // Same group - just update in place
+        updatedCategories = {
+          ...categories,
+          [categoryGroup]: categories[categoryGroup].map((cat) =>
+            cat.id === editingCategoryId
+              ? updatedCategory
+              : cat
+          ),
+        };
+      } else {
+        // Group changed - remove from old group and add to new group
+        updatedCategories = {
+          ...categories,
+          [currentGroup]: categories[currentGroup].filter((cat) => cat.id !== editingCategoryId),
+          [categoryGroup]: [...(categories[categoryGroup] || []), updatedCategory],
+        };
+      }
 
       setCategories(updatedCategories);
       saveCategories(updatedCategories);
@@ -222,20 +255,49 @@ export default function SettingsPage() {
   };
 
   const handleDeleteCategory = () => {
-    if (editingCategoryId && categoryGroup) {
-      // Remove category from state
-      const updatedCategories = {
-        ...categories,
-        [categoryGroup]: categories[categoryGroup].filter((cat) => cat.id !== editingCategoryId),
-      };
-
-      setCategories(updatedCategories);
-      saveCategories(updatedCategories);
-
-      toast.success("Category deleted", {
-        description: `${categoryIcon} ${categoryName} has been deleted.`,
-      });
+    if (!editingCategoryId) {
+      return;
     }
+
+    // Find the category's actual group and details
+    let actualGroup: string | null = null;
+    let foundCategory: { id: string; icon: string; name: string } | null = null;
+
+    for (const group in categories) {
+      const category = categories[group].find(cat => cat.id === editingCategoryId);
+      if (category) {
+        actualGroup = group;
+        foundCategory = category;
+        break;
+      }
+    }
+
+    if (!actualGroup || !foundCategory) {
+      // Category not found - bail out safely
+      toast.error("Category not found", {
+        description: "The category you're trying to delete no longer exists.",
+      });
+      setIsDeleteCategoryConfirmOpen(false);
+      setIsCreateCategoryOpen(false);
+      setCategoryIcon("❓");
+      setCategoryName("");
+      setCategoryGroup("Auto & Transport");
+      setEditingCategoryId(null);
+      return;
+    }
+
+    // Remove category from its actual group
+    const updatedCategories = {
+      ...categories,
+      [actualGroup]: categories[actualGroup].filter((cat) => cat.id !== editingCategoryId),
+    };
+
+    setCategories(updatedCategories);
+    saveCategories(updatedCategories);
+
+    toast.success("Category deleted", {
+      description: `${foundCategory.icon} ${foundCategory.name} has been deleted.`,
+    });
 
     // Reset form and close dialogs
     setIsDeleteCategoryConfirmOpen(false);
@@ -308,16 +370,18 @@ export default function SettingsPage() {
   };
 
   const handleDeleteGroup = () => {
-    if (groupName) {
-      // Remove group from categories state
+    // Use originalGroupName to ensure we delete the correct group,
+    // even if the user edited the name in the dialog before deleting
+    if (originalGroupName) {
+      // Remove group from categories state using the original immutable name
       const newCategories = { ...categories };
-      delete newCategories[groupName];
+      delete newCategories[originalGroupName];
 
       setCategories(newCategories);
       saveCategories(newCategories);
 
       toast.success("Group deleted", {
-        description: `${groupName} and all its categories have been deleted.`,
+        description: `${originalGroupName} and all its categories have been deleted.`,
       });
     }
 
@@ -325,6 +389,7 @@ export default function SettingsPage() {
     setIsDeleteConfirmOpen(false);
     setIsCreateGroupOpen(false);
     setGroupName("");
+    setOriginalGroupName(null);
     setEditingGroupId(null);
   };
 
@@ -446,8 +511,8 @@ export default function SettingsPage() {
                         <SelectValue placeholder="Choose your currency" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Dollar">Dollar (USD)</SelectItem>
-                        <SelectItem value="Euro">Euro (EUR)</SelectItem>
+                        <SelectItem value="USD">US Dollar (USD)</SelectItem>
+                        <SelectItem value="EUR">Euro (EUR)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -479,7 +544,7 @@ export default function SettingsPage() {
                         </svg>
                       </div>
                       <p className="text-sm text-blue-700">
-                        Changes you make to your groups and categories here will be applied all throughout Sidequest. You should customize your category structure to fit your needs.
+                        Changes you make to your groups and categories here will be applied all throughout {APP_NAME}. You should customize your category structure to fit your needs.
                       </p>
                     </div>
 

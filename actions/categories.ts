@@ -3,12 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { ApiResponseBuilder } from "@/types/common.types";
 import { DEFAULT_CATEGORIES } from "@/lib/default-categories";
-
-interface Category {
-  id: string;
-  icon: string;
-  name: string;
-}
+import { container } from "@/lib/container-config";
+import { CategoryService } from "@/modules/categories";
+import { CategoryUIMapper } from "@/mappers/category-ui.mapper";
+import { GroupedCategoriesUI } from "@/models/category-ui.model";
 
 /**
  * Get user's categories or return defaults if none exist
@@ -23,39 +21,24 @@ export async function getUserCategoriesAction() {
       return ApiResponseBuilder.failure("User not authenticated");
     }
 
-    // Get user's categories from database
-    const { data: categories, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("name");
+    // Resolve service from DI container
+    const categoryService = container.get(CategoryService);
 
-    if (error) {
-      console.error("Error fetching categories:", error);
-      return ApiResponseBuilder.failure("Failed to fetch categories");
-    }
+    // Check if user has categories
+    const hasCategories = await categoryService.hasCategories(user.id);
 
     // If user has no categories, return defaults
-    if (!categories || categories.length === 0) {
-      return ApiResponseBuilder.success(DEFAULT_CATEGORIES);
+    if (!hasCategories) {
+      return ApiResponseBuilder.success<GroupedCategoriesUI>(DEFAULT_CATEGORIES);
     }
 
-    // Group categories by group_name
-    const groupedCategories: Record<string, Category[]> = {};
-    
-    categories.forEach((cat) => {
-      if (!groupedCategories[cat.group_name]) {
-        groupedCategories[cat.group_name] = [];
-      }
-      
-      groupedCategories[cat.group_name].push({
-        id: cat.id,
-        icon: cat.icon,
-        name: cat.name,
-      });
-    });
+    // Get user's categories from service
+    const groupedCategories = await categoryService.getUserCategories(user.id);
 
-    return ApiResponseBuilder.success(groupedCategories);
+    // Map to UI format
+    const categoriesUI = CategoryUIMapper.fromDomain(groupedCategories);
+
+    return ApiResponseBuilder.success<GroupedCategoriesUI>(categoriesUI);
   } catch (error) {
     console.error("Error in getUserCategoriesAction:", error);
     return ApiResponseBuilder.failure("An unexpected error occurred");
@@ -66,7 +49,7 @@ export async function getUserCategoriesAction() {
  * Save user's categories to database
  */
 export async function saveUserCategoriesAction(
-  categories: Record<string, Category[]>
+  categories: GroupedCategoriesUI
 ) {
   try {
     const supabase = await createClient();
@@ -77,41 +60,14 @@ export async function saveUserCategoriesAction(
       return ApiResponseBuilder.failure("User not authenticated");
     }
 
-    // Delete all existing categories for this user
-    const { error: deleteError } = await supabase
-      .from("categories")
-      .delete()
-      .eq("user_id", user.id);
+    // Resolve service from DI container
+    const categoryService = container.get(CategoryService);
 
-    if (deleteError) {
-      console.error("Error deleting categories:", deleteError);
-      return ApiResponseBuilder.failure("Failed to delete existing categories");
-    }
+    // Convert UI model to domain model
+    const categoriesDomain = CategoryUIMapper.toDomain(categories);
 
-    // Insert all new categories
-    const categoriesToInsert = [];
-    
-    for (const [groupName, cats] of Object.entries(categories)) {
-      for (const cat of cats) {
-        categoriesToInsert.push({
-          user_id: user.id,
-          group_name: groupName,
-          icon: cat.icon,
-          name: cat.name,
-        });
-      }
-    }
-
-    if (categoriesToInsert.length > 0) {
-      const { error: insertError } = await supabase
-        .from("categories")
-        .insert(categoriesToInsert);
-
-      if (insertError) {
-        console.error("Error inserting categories:", insertError);
-        return ApiResponseBuilder.failure("Failed to save categories");
-      }
-    }
+    // Save categories via service
+    await categoryService.saveUserCategories(user.id, categoriesDomain);
 
     return ApiResponseBuilder.success({ message: "Categories saved successfully" });
   } catch (error) {

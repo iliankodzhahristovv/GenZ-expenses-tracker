@@ -68,7 +68,15 @@ export class SupabaseUserRepository extends UserRepository {
 
   async update(id: string, user: Partial<User>): Promise<User> {
     const supabase = await createClient();
-    const updateData: any = {};
+    
+    // Type for database update payload
+    type UserUpdateData = {
+      email?: string;
+      name?: string | null;
+      currency?: string | null;
+    };
+    
+    const updateData: UserUpdateData = {};
     
     if (user.email !== undefined) updateData.email = user.email;
     if (user.name !== undefined) updateData.name = user.name;

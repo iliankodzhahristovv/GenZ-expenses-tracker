@@ -1,18 +1,40 @@
-import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
+import { createClient } from "@/lib/supabase/server";
+import { getOpenAIModel } from "@/lib/openai";
 
 export const runtime = "edge";
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return new Response("OPENAI_API_KEY is not configured", { status: 500 });
+    // Authentication check - validate user before processing request
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      // Log authentication failure without leaking sensitive information
+      console.warn("Unauthorized chat API access attempt", {
+        timestamp: new Date().toISOString(),
+        hasAuthError: !!authError,
+        // Do not log error details or user information
+      });
+
+      return new Response(
+        JSON.stringify({ error: "Unauthorized. Please sign in to access the chat." }),
+        { 
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
     }
 
+    // Parse request body only after authentication succeeds
     const { messages } = await req.json();
 
+    // Get OpenAI model instance (includes API key validation)
+    const model = getOpenAIModel("gpt-4o-mini");
+
     const result = await streamText({
-      model: openai("gpt-4o-mini"),
+      model,
       messages,
       temperature: 0.7,
       maxTokens: 1000,

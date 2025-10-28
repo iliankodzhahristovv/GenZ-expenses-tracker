@@ -14,6 +14,7 @@ import {
   addMessageAction,
   deleteConversationAction,
 } from "@/actions/chat";
+import type { ConversationDTO, MessageDTO } from "@/types/chat.types";
 
 interface Message {
   id: string;
@@ -51,10 +52,10 @@ export default function ChatPage() {
       const response = await getUserConversationsAction();
       if (response.success && response.data) {
         setConversations(
-          response.data.map((conv: any) => ({
+          response.data.map((conv: ConversationDTO) => ({
             id: conv.id,
             title: conv.title,
-            updatedAt: new Date(conv.updatedAt),
+            updatedAt: new Date(conv.updatedAt), // Convert ISO string to Date
           }))
         );
       }
@@ -221,7 +222,7 @@ export default function ChatPage() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      handleSubmit(e as any);
+      handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -238,10 +239,10 @@ export default function ChatPage() {
       const response = await getConversationMessagesAction(conversationId);
       if (response.success && response.data) {
         setMessages(
-          response.data.map((msg: any) => ({
+          response.data.map((msg: MessageDTO) => ({
             id: msg.id,
             content: msg.content,
-            role: msg.role,
+            role: msg.role, // Already the correct type: "user" | "assistant"
           }))
         );
       }

@@ -39,4 +39,16 @@ export const DEFAULT_CATEGORIES: Record<string, Array<{ id: string; icon: string
   "Wages": [
     { id: "employee-wages-contract-labor", icon: "💰", name: "Employee wages & contract labor" },
   ],
+  "Income": [
+    { id: "client-projects", icon: "💼", name: "Client Projects" },
+    { id: "recurring-revenue", icon: "🔄", name: "Recurring Revenue" },
+    { id: "consulting", icon: "🎯", name: "Consulting" },
+    { id: "product-sales", icon: "🛍️", name: "Product Sales" },
+    { id: "service-fees", icon: "⚙️", name: "Service Fees" },
+    { id: "licensing", icon: "📜", name: "Licensing" },
+    { id: "commission", icon: "💵", name: "Commission" },
+    { id: "grants-funding", icon: "🏦", name: "Grants & Funding" },
+    { id: "investment-income", icon: "📈", name: "Investment Income" },
+    { id: "other-income", icon: "💰", name: "Other Income" },
+  ],
 };

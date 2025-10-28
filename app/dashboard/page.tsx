@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ProtectedLayout } from "@/components/layout";
 import { useCurrentUser } from "@/hooks/auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from "recharts";
 import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBag } from "lucide-react";
 import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
 
@@ -76,8 +76,37 @@ export default function DashboardPage() {
     year: 'numeric' 
   });
 
-  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
-  const userCurrency = user?.currency || "Dollar";
+  const currencySymbol = getCurrencySymbol(user?.currency || "USD");
+  const userCurrency = user?.currency || "USD";
+
+  // Convert spending data to user's currency once with useMemo
+  const convertedSpendingData = useMemo(() => {
+    return spendingData.map(point => ({
+      day: point.day,
+      currentMonth: convertFromBaseCurrency(point.currentMonth, userCurrency),
+      lastMonth: convertFromBaseCurrency(point.lastMonth, userCurrency),
+    }));
+  }, [userCurrency]);
+
+  // Get the latest spending value for the header (already in user currency)
+  const currentMonthTotal = convertedSpendingData[convertedSpendingData.length - 1]?.currentMonth || 0;
+
+  // Custom tooltip component to display currency symbol
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+          <p className="text-xs text-gray-500 mb-1">{payload[0].payload.day}</p>
+          {payload.map((entry, index) => (
+            <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
+              {entry.name}: {currencySymbol}{Number(entry.value).toFixed(2)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <ProtectedLayout>
@@ -188,7 +217,7 @@ export default function DashboardPage() {
                     <div>
                       <CardTitle className="text-base">Spending</CardTitle>
                       <p className="text-2xl font-semibold mt-1">
-                        {currencySymbol}{convertFromBaseCurrency(1209, userCurrency).toFixed(2)} this month
+                        {currencySymbol}{currentMonthTotal.toFixed(2)} this month
                       </p>
                     </div>
                     <div className="flex gap-2 text-xs text-gray-500">
@@ -200,11 +229,14 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={spendingData}>
+                    <LineChart data={convertedSpendingData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip />
+                      <YAxis 
+                        tick={{ fontSize: 12 }} 
+                        tickFormatter={(value) => `${currencySymbol}${value}`}
+                      />
+                      <Tooltip content={<CustomTooltip />} />
                       <Line type="monotone" dataKey="lastMonth" stroke="#ffc0cb" strokeWidth={2} dot={false} name="Last month" />
                       <Line type="monotone" dataKey="currentMonth" stroke="#999999" strokeWidth={2} dot={false} name="This month" />
                     </LineChart>
@@ -249,7 +281,11 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</span>
-                          <button className="text-gray-400 hover:text-gray-600">
+                          <button 
+                            className="text-gray-400 hover:text-gray-600"
+                            aria-label="Remove transaction"
+                            title="Remove transaction"
+                          >
                             <X className="h-4 w-4" />
                           </button>
                         </div>

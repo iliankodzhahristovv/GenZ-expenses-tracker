@@ -2,9 +2,12 @@
 
 import { container } from "@/lib/container-config";
 import { UserService } from "@/modules/users";
-import { UserUIMapper, UserUI } from "@/mappers/user-ui.mapper";
+import { UserUIMapper } from "@/mappers/user-ui.mapper";
+import { UserUI } from "@/models/user-ui.model";
 import { ApiResponseBuilder } from "@/types/common.types";
 import { getCurrentUserAction } from "./auth";
+import { isValidCurrency, getSupportedCurrencies } from "@/lib/currency-utils";
+import { UpdateUserDTO } from "@/types/user-update.types";
 
 /**
  * Server action to get user by ID
@@ -48,7 +51,11 @@ export async function createUser(
 ): Promise<UserUI | null> {
   try {
     const userService = container.get(UserService);
-    const user = await userService.createUser({ email, name });
+    const user = await userService.createUser({ 
+      email, 
+      name,
+      currency: "USD" // Default ISO 4217 currency code for new users
+    });
     
     return UserUIMapper.fromDomain(user);
   } catch (error) {
@@ -69,12 +76,20 @@ export async function updateUserProfileAction(data: { displayName?: string; curr
     }
 
     const userService = container.get(UserService);
-    const updateData: any = {};
+    const updateData: UpdateUserDTO = {};
     
     if (data.displayName !== undefined) {
       updateData.name = data.displayName;
     }
+    
     if (data.currency !== undefined) {
+      // Validate currency before updating
+      if (!isValidCurrency(data.currency)) {
+        const supportedCurrencies = getSupportedCurrencies().join(", ");
+        return ApiResponseBuilder.failure(
+          `Invalid currency. Supported currencies are: ${supportedCurrencies}`
+        );
+      }
       updateData.currency = data.currency;
     }
     

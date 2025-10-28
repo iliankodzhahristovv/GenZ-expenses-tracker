@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useCurrentUser } from "@/hooks/auth";
 import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
 import { getUserCategoriesAction } from "@/actions/categories";
-import { getIncomeAction, createIncomeAction, updateIncomeAction, deleteIncomeAction } from "@/actions/income";
+import { getIncomeAction, createIncomeAction, updateIncomeAction } from "@/actions/income";
 
 interface Income {
   id: string;
@@ -94,11 +94,12 @@ export default function IncomePage() {
   const filteredIncome = incomeEntries.filter((income) => {
     const query = searchQuery.toLowerCase();
     const convertedAmount = convertFromBaseCurrency(income.amount, user?.currency || "Dollar");
+    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : income.amount;
     return (
       income.description.toLowerCase().includes(query) ||
       income.category.toLowerCase().includes(query) ||
       income.date.includes(query) ||
-      convertedAmount.toString().startsWith(query)
+      safeAmount.toString().startsWith(query)
     );
   });
 
@@ -275,11 +276,14 @@ export default function IncomePage() {
     setIsEditDialogOpen(true);
   };
 
-  // Convert total income to user's currency
-  const totalIncomeInUserCurrency = incomeEntries.reduce((sum, income) => {
-    const convertedAmount = convertFromBaseCurrency(income.amount, user?.currency || "Dollar");
-    return sum + convertedAmount;
-  }, 0);
+  // Convert total income to user's currency using integer minor-units (cents) for precision
+  const totalIncomeInUserCurrency = incomeEntries.reduce((sumInCents, income) => {
+    const convertedAmount = convertFromBaseCurrency(income.amount, user?.currency || "USD");
+    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : income.amount;
+    // Convert to cents (minor units) to avoid floating-point precision errors
+    const amountInCents = Math.round(safeAmount * 100);
+    return sumInCents + amountInCents;
+  }, 0) / 100; // Convert back to major units (dollars, euros, etc.)
 
   return (
     <ProtectedLayout>
@@ -514,6 +518,7 @@ export default function IncomePage() {
                 ) : (
                   sortedIncome.map((income) => {
                     const displayAmount = convertFromBaseCurrency(income.amount, user?.currency || "Dollar");
+                    const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : income.amount;
                     return (
                       <TableRow
                         key={income.id}
@@ -528,7 +533,7 @@ export default function IncomePage() {
                           })}
                         </TableCell>
                         <TableCell className="font-semibold text-green-600">
-                          +{currencySymbol}{displayAmount.toFixed(2)}
+                          +{currencySymbol}{safeDisplayAmount.toFixed(2)}
                         </TableCell>
                         <TableCell>
                           <Badge className={getCategoryColor(income.category)}>

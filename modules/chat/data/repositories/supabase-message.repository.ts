@@ -51,6 +51,12 @@ export class SupabaseMessageRepository implements MessageRepository {
       throw new Error(`Failed to create message: ${error.message}`);
     }
 
+    // Keep conversation fresh for sorting
+    await supabase
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId);
+
     return {
       id: data.id,
       conversationId: data.conversation_id,

@@ -33,13 +33,30 @@ export class ChatService {
       : initialMessage;
 
     const conversation = await this.conversationRepository.createConversation(userId, title);
-    const message = await this.messageRepository.createMessage(
-      conversation.id,
-      "user",
-      initialMessage
-    );
+    
+    try {
+      const message = await this.messageRepository.createMessage(
+        conversation.id,
+        "user",
+        initialMessage
+      );
 
-    return { conversation, message };
+      return { conversation, message };
+    } catch (messageError) {
+      // Rollback: Delete the conversation if message creation fails
+      try {
+        await this.conversationRepository.deleteConversation(conversation.id);
+      } catch (deleteError) {
+        // Log deletion failure but prioritize the original error
+        console.error(
+          `Failed to rollback conversation ${conversation.id} after message creation error:`,
+          deleteError instanceof Error ? deleteError.message : String(deleteError)
+        );
+      }
+      
+      // Rethrow the original message creation error
+      throw messageError;
+    }
   }
 
   async addMessage(
@@ -47,7 +64,14 @@ export class ChatService {
     role: "user" | "assistant",
     content: string
   ): Promise<Message> {
-    return this.messageRepository.createMessage(conversationId, role, content);
+    // Validate and normalize message content
+    const trimmedContent = content?.trim();
+    
+    if (!trimmedContent) {
+      throw new Error("Message content cannot be empty");
+    }
+    
+    return this.messageRepository.createMessage(conversationId, role, trimmedContent);
   }
 
   async deleteConversation(conversationId: string): Promise<void> {

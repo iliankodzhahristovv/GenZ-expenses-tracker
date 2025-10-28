@@ -15,7 +15,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useCurrentUser } from "@/hooks/auth";
 import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
 import { getUserCategoriesAction } from "@/actions/categories";
-import { getExpensesAction, createExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
+import { getExpensesAction, createExpenseAction, updateExpenseAction } from "@/actions/expenses";
 
 interface Expense {
   id: string;
@@ -94,11 +94,12 @@ export default function ExpensesPage() {
   const filteredExpenses = expenses.filter((expense) => {
     const query = searchQuery.toLowerCase();
     const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : expense.amount;
     return (
       expense.description.toLowerCase().includes(query) ||
       expense.category.toLowerCase().includes(query) ||
       expense.date.includes(query) ||
-      convertedAmount.toString().startsWith(query)
+      safeAmount.toString().startsWith(query)
     );
   });
 
@@ -275,11 +276,14 @@ export default function ExpensesPage() {
     setIsEditDialogOpen(true);
   };
 
-  // Convert total expenses to user's currency
-  const totalExpensesInUserCurrency = expenses.reduce((sum, expense) => {
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
-    return sum + convertedAmount;
-  }, 0);
+  // Convert total expenses to user's currency using integer minor-units (cents) for precision
+  const totalExpensesInUserCurrency = expenses.reduce((sumInCents, expense) => {
+    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
+    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : expense.amount;
+    // Convert to cents (minor units) to avoid floating-point precision errors
+    const amountInCents = Math.round(safeAmount * 100);
+    return sumInCents + amountInCents;
+  }, 0) / 100; // Convert back to major units (dollars, euros, etc.)
 
   return (
     <ProtectedLayout>
@@ -514,6 +518,7 @@ export default function ExpensesPage() {
                 ) : (
                   sortedExpenses.map((expense) => {
                     const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+                    const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : expense.amount;
                     return (
                       <TableRow
                         key={expense.id}
@@ -528,7 +533,7 @@ export default function ExpensesPage() {
                           })}
                         </TableCell>
                         <TableCell className="font-semibold">
-                          {currencySymbol}{displayAmount.toFixed(2)}
+                          {currencySymbol}{safeDisplayAmount.toFixed(2)}
                         </TableCell>
                         <TableCell>
                           <Badge className={getCategoryColor(expense.category)}>

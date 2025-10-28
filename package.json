@@ -15,6 +15,7 @@
     "supabase:status": "npx supabase@latest status",
     "supabase:reset": "npx supabase@latest db reset && pnpm generate:types",
     "supabase:migration:new": "npx supabase@latest migration new",
+    "supabase:diff": "npx supabase@latest db diff -f",
     "supabase:types": "npx supabase@latest gen types typescript --local > types/database.types.ts",
     "generate:entities": "npx tsx scripts/generate-entity-types.ts",
     "generate:types": "pnpm supabase:types && pnpm generate:entities"
