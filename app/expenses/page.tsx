@@ -1,19 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ProtectedLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, DollarSign, FileText, Tag, Pencil } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Search, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { useCurrentUser } from "@/hooks/auth";
 import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
+import { getUserCategoriesAction } from "@/actions/categories";
+import { getExpensesAction, createExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
 
 interface Expense {
   id: string;
@@ -23,27 +25,6 @@ interface Expense {
   category: string;
 }
 
-// Mock initial expenses
-const initialExpenses: Expense[] = [
-  { id: "1", date: "2025-10-25", amount: 299.00, description: "Adobe Creative Cloud annual subscription", category: "Software & Subscriptions" },
-  { id: "2", date: "2025-10-24", amount: 1250.00, description: "Google Ads campaign for Q4", category: "Marketing & Advertising" },
-  { id: "3", date: "2025-10-23", amount: 450.00, description: "Business lunch with potential client", category: "Client Entertainment" },
-  { id: "4", date: "2025-10-22", amount: 85.50, description: "Office supplies - printer paper and toner", category: "Office Supplies" },
-  { id: "5", date: "2025-10-21", amount: 500.00, description: "Legal consultation for contract review", category: "Professional Services" },
-];
-
-const categories = [
-  "Office Supplies",
-  "Marketing & Advertising",
-  "Software & Subscriptions",
-  "Travel & Transportation",
-  "Client Entertainment",
-  "Professional Services",
-  "Utilities & Rent",
-  "Equipment & Hardware",
-  "Employee Benefits",
-  "Other"
-];
 
 const getCategoryColor = (category: string) => {
   const colors: { [key: string]: string } = {
@@ -68,20 +49,98 @@ const getCategoryColor = (category: string) => {
  */
 export default function ExpensesPage() {
   const { user } = useCurrentUser();
-  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortField, setSortField] = useState<"date" | "amount" | "category" | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [isLoading, setIsLoading] = useState(true);
   const [newExpense, setNewExpense] = useState({
     date: new Date().toISOString().split('T')[0],
     amount: "",
     description: "",
     category: "",
   });
+  const [categories, setCategories] = useState<Record<string, Array<{ id: string; icon: string; name: string }>>>({});
 
   const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
 
-  const handleAddExpense = () => {
+  // Load user categories and expenses from database
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      
+      // Load categories
+      const categoriesResponse = await getUserCategoriesAction();
+      if (categoriesResponse.success && categoriesResponse.data) {
+        setCategories(categoriesResponse.data);
+      }
+
+      // Load expenses
+      const expensesResponse = await getExpensesAction();
+      if (expensesResponse.success && expensesResponse.data) {
+        setExpenses(expensesResponse.data);
+      }
+
+      setIsLoading(false);
+    };
+
+    loadData();
+  }, []);
+
+  // Filter expenses based on search query
+  const filteredExpenses = expenses.filter((expense) => {
+    const query = searchQuery.toLowerCase();
+    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+    return (
+      expense.description.toLowerCase().includes(query) ||
+      expense.category.toLowerCase().includes(query) ||
+      expense.date.includes(query) ||
+      convertedAmount.toString().startsWith(query)
+    );
+  });
+
+  // Sort expenses
+  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+    if (!sortField) return 0;
+
+    let comparison = 0;
+    if (sortField === "date") {
+      comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
+    } else if (sortField === "amount") {
+      comparison = a.amount - b.amount;
+    } else if (sortField === "category") {
+      comparison = a.category.localeCompare(b.category);
+    }
+
+    return sortDirection === "asc" ? comparison : -comparison;
+  });
+
+  // Toggle sort
+  const handleSort = (field: "date" | "amount" | "category") => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Get sort icon
+  const getSortIcon = (field: "date" | "amount" | "category") => {
+    if (sortField !== field) {
+      return <ChevronsUpDown className="ml-2 h-4 w-4" />;
+    }
+    return sortDirection === "asc" ? (
+      <ChevronUp className="ml-2 h-4 w-4" />
+    ) : (
+      <ChevronDown className="ml-2 h-4 w-4" />
+    );
+  };
+
+  const handleAddExpense = async () => {
     // Trim and validate inputs
     const trimmedDescription = newExpense.description.trim();
     const trimmedAmount = newExpense.amount.trim();
@@ -124,16 +183,26 @@ export default function ExpensesPage() {
       return;
     }
 
-    // Create expense after validation
-    const expense: Expense = {
-      id: crypto.randomUUID(),
+    // Create expense in database
+    const response = await createExpenseAction({
       date: newExpense.date,
       amount: parsedAmount,
       description: trimmedDescription,
       category: newExpense.category,
-    };
+    });
 
-    setExpenses((prev) => [expense, ...prev]);
+    if (!response.success) {
+      toast.error("Failed to add expense", {
+        description: response.error || "Something went wrong",
+      });
+      return;
+    }
+
+    // Add to local state
+    if (response.data) {
+      setExpenses((prev) => [response.data, ...prev]);
+    }
+
     setNewExpense({
       date: new Date().toISOString().split('T')[0],
       amount: "",
@@ -142,11 +211,11 @@ export default function ExpensesPage() {
     });
     setIsDialogOpen(false);
     toast.success("Expense added", {
-      description: `Added ${trimmedDescription} - $${parsedAmount.toFixed(2)}`,
+      description: `Added ${trimmedDescription} - ${currencySymbol}${parsedAmount.toFixed(2)}`,
     });
   };
 
-  const handleEditExpense = () => {
+  const handleEditExpense = async () => {
     if (!editingExpense) return;
 
     // Validate inputs
@@ -173,7 +242,23 @@ export default function ExpensesPage() {
       return;
     }
 
-    // Update expense
+    // Update expense in database
+    const response = await updateExpenseAction({
+      id: editingExpense.id,
+      date: editingExpense.date,
+      amount: editingExpense.amount,
+      description: trimmedDescription,
+      category: editingExpense.category,
+    });
+
+    if (!response.success) {
+      toast.error("Failed to update expense", {
+        description: response.error || "Something went wrong",
+      });
+      return;
+    }
+
+    // Update local state
     setExpenses((prev) =>
       prev.map((exp) => (exp.id === editingExpense.id ? editingExpense : exp))
     );
@@ -181,7 +266,7 @@ export default function ExpensesPage() {
     setIsEditDialogOpen(false);
     setEditingExpense(null);
     toast.success("Expense updated", {
-      description: `Updated ${trimmedDescription} - $${editingExpense.amount.toFixed(2)}`,
+      description: `Updated ${trimmedDescription} - ${currencySymbol}${editingExpense.amount.toFixed(2)}`,
     });
   };
 
@@ -199,17 +284,20 @@ export default function ExpensesPage() {
   return (
     <ProtectedLayout>
       <Toaster />
-      <div className="p-6 bg-[#F7F7F7]">
-        <div className="max-w-5xl mx-auto">
-          {/* Header with Add Button */}
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Expenses</h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Total: {currencySymbol}{totalExpensesInUserCurrency.toFixed(2)}
-              </p>
+      <div className="p-6 bg-[#F7F7F7] min-h-screen">
+        <div className="max-w-7xl mx-auto">
+          {/* Search and Actions Bar */}
+          <div className="mb-4 flex items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 bg-white"
+              />
             </div>
-            
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="bg-black hover:bg-gray-800">
@@ -268,10 +356,17 @@ export default function ExpensesPage() {
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
+                        {Object.keys(categories).sort((a, b) => a.localeCompare(b)).map((groupName) => (
+                          <SelectGroup key={groupName}>
+                            <SelectLabel>{groupName}</SelectLabel>
+                            {categories[groupName]
+                              ?.sort((a, b) => a.name.localeCompare(b.name))
+                              .map((category) => (
+                                <SelectItem key={category.id} value={category.name}>
+                                  {category.icon} {category.name}
+                                </SelectItem>
+                              ))}
+                          </SelectGroup>
                         ))}
                       </SelectContent>
                     </Select>
@@ -342,10 +437,17 @@ export default function ExpensesPage() {
                           <SelectValue placeholder="Select a category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category} value={category}>
-                              {category}
-                            </SelectItem>
+                          {Object.keys(categories).sort((a, b) => a.localeCompare(b)).map((groupName) => (
+                            <SelectGroup key={groupName}>
+                              <SelectLabel>{groupName}</SelectLabel>
+                              {categories[groupName]
+                                ?.sort((a, b) => a.name.localeCompare(b.name))
+                                .map((category) => (
+                                  <SelectItem key={category.id} value={category.name}>
+                                    {category.icon} {category.name}
+                                  </SelectItem>
+                                ))}
+                            </SelectGroup>
                           ))}
                         </SelectContent>
                       </Select>
@@ -364,62 +466,85 @@ export default function ExpensesPage() {
             </Dialog>
           </div>
 
-          {/* Expenses List */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">All Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {expenses.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-sm">No expenses yet. Add your first expense to get started!</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {expenses.map((expense) => {
+          {/* Expenses Table */}
+          <div className="bg-white rounded-lg border border-gray-200">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("date")}
+                      className="hover:bg-transparent p-0 h-auto font-medium"
+                    >
+                      Date
+                      {getSortIcon("date")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("amount")}
+                      className="hover:bg-transparent p-0 h-auto font-medium"
+                    >
+                      Amount
+                      {getSortIcon("amount")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>
+                    <Button
+                      variant="ghost"
+                      onClick={() => handleSort("category")}
+                      className="hover:bg-transparent p-0 h-auto font-medium"
+                    >
+                      Category
+                      {getSortIcon("category")}
+                    </Button>
+                  </TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedExpenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-12 text-gray-500">
+                      {searchQuery ? "No expenses found matching your search." : "No expenses yet. Add your first expense to get started!"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  sortedExpenses.map((expense) => {
                     const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
                     return (
-                    <div
-                      key={expense.id}
-                      className="group flex items-center justify-between py-3 border-b border-gray-100 last:border-0"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-1">
-                          <p className="text-sm font-semibold text-gray-900">{expense.description}</p>
+                      <TableRow
+                        key={expense.id}
+                        className="cursor-pointer hover:bg-gray-50"
+                        onClick={() => openEditDialog(expense)}
+                      >
+                        <TableCell className="font-medium">
+                          {new Date(expense.date).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          {currencySymbol}{displayAmount.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
                           <Badge className={getCategoryColor(expense.category)}>
                             {expense.category}
                           </Badge>
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {new Date(expense.date).toLocaleDateString('en-US', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <p className="text-lg font-semibold text-gray-900">
-                            {currencySymbol}{displayAmount.toFixed(2)}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEditDialog(expense)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                        </TableCell>
+                        <TableCell className="max-w-md truncate">
+                          {expense.description}
+                        </TableCell>
+                      </TableRow>
                     );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </div>
     </ProtectedLayout>

@@ -38,7 +38,7 @@ export default function SettingsPage() {
   const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
   const [categoryIcon, setCategoryIcon] = useState("❓");
   const [categoryName, setCategoryName] = useState("");
-  const [categoryGroup, setCategoryGroup] = useState("Auto & Transport");
+  const [categoryGroup, setCategoryGroup] = useState("");
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
   const [isDeleteCategoryConfirmOpen, setIsDeleteCategoryConfirmOpen] = useState(false);
   const emojiInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +84,6 @@ export default function SettingsPage() {
   // Create/Edit Group Dialog State
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
-  const [groupBudget, setGroupBudget] = useState("By category");
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [originalGroupName, setOriginalGroupName] = useState<string | null>(null);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -297,16 +296,14 @@ export default function SettingsPage() {
     // Reset form and close dialog
     setIsCreateGroupOpen(false);
     setGroupName("");
-    setGroupBudget("By category");
     setEditingGroupId(null);
     setOriginalGroupName(null);
   };
 
-  const openEditGroup = (groupId: string, name: string, budget: string) => {
+  const openEditGroup = (groupId: string, name: string) => {
     setEditingGroupId(groupId);
     setGroupName(name);
     setOriginalGroupName(name);
-    setGroupBudget(budget);
     setIsCreateGroupOpen(true);
   };
 
@@ -328,7 +325,6 @@ export default function SettingsPage() {
     setIsDeleteConfirmOpen(false);
     setIsCreateGroupOpen(false);
     setGroupName("");
-    setGroupBudget("By category");
     setEditingGroupId(null);
   };
 
@@ -510,7 +506,7 @@ export default function SettingsPage() {
                                 variant="ghost" 
                                 size="sm" 
                                 className="text-gray-600 hover:text-gray-900"
-                                onClick={() => openEditGroup(groupName.toLowerCase().replace(/\s+&\s+/g, '-').replace(/\s+/g, '-'), groupName, "By category")}
+                                onClick={() => openEditGroup(groupName.toLowerCase().replace(/\s+&\s+/g, '-').replace(/\s+/g, '-'), groupName)}
                               >
                                 Edit
                               </Button>
@@ -589,16 +585,14 @@ export default function SettingsPage() {
               <Label className="text-sm font-medium">Group</Label>
               <Select value={categoryGroup} onValueChange={setCategoryGroup}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select a group" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Auto & Transport">Auto & Transport</SelectItem>
-                  <SelectItem value="Housing">Housing</SelectItem>
-                  <SelectItem value="Bills & Utilities">Bills & Utilities</SelectItem>
-                  <SelectItem value="Food & Dining">Food & Dining</SelectItem>
-                  <SelectItem value="Travel & Lifestyle">Travel & Lifestyle</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                  <SelectItem value="Business">Business</SelectItem>
+                  {Object.keys(categories).sort().map((groupName) => (
+                    <SelectItem key={groupName} value={groupName}>
+                      {groupName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -676,21 +670,6 @@ export default function SettingsPage() {
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Enter group name"
               />
-            </div>
-
-            {/* Budget */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Budget</Label>
-              <Select value={groupBudget} onValueChange={setGroupBudget}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="By category">By category</SelectItem>
-                  <SelectItem value="Fixed amount">Fixed amount</SelectItem>
-                  <SelectItem value="No budget">No budget</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
 
             {/* Buttons */}
