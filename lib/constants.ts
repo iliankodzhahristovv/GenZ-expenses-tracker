@@ -1,3 +1,6 @@
+// Application configuration
+export const APP_NAME = "Sidequest";
+
 // Route constants
 export const ROUTES = {
   HOME: "/",

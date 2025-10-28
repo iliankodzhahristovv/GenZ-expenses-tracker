@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { ROUTES } from "@/lib/constants";
+import { ROUTES, APP_NAME } from "@/lib/constants";
 
 interface HeaderProps {
   isCollapsed: boolean;
@@ -23,7 +23,7 @@ const getPageInfo = (pathname: string) => {
     case ROUTES.SETTINGS:
       return { title: "Settings" };
     default:
-      return { title: "Sidequest" };
+      return { title: APP_NAME };
   }
 };
 
