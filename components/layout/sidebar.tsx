@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { ROUTES } from "@/lib/constants";
+import { ROUTES, APP_NAME } from "@/lib/constants";
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -63,7 +63,7 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
         ) : (
           <div className="flex items-center gap-2">
             <span className="text-2xl tracking-tight">🗺️🎒</span>
-            <h1 className="text-xl font-semibold text-gray-900">Sidequest</h1>
+            <h1 className="text-xl font-semibold text-gray-900">{APP_NAME}</h1>
           </div>
         )}
       </div>

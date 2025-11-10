@@ -21,6 +21,7 @@ export class UserUIMapper {
       id: user.id,
       email: user.email,
       displayName: user.name || "Anonymous",
+      currency: user.currency || "USD",
       createdAt: user.createdAt ? user.createdAt.toLocaleDateString() : "N/A",
       updatedAt: user.updatedAt ? user.updatedAt.toLocaleDateString() : "N/A",
     };
@@ -34,6 +35,7 @@ export class UserUIMapper {
       id: userUI.id,
       email: userUI.email,
       name: userUI.displayName === "Anonymous" ? null : userUI.displayName,
+      currency: userUI.currency,
       createdAt: new Date(userUI.createdAt),
       updatedAt: new Date(userUI.updatedAt),
     };
