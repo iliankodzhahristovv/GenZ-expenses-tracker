@@ -1,7 +1,4 @@
-"use client";
-
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/ui/search-input";
 
 interface ExpenseSearchProps {
   value: string;
@@ -9,17 +6,6 @@ interface ExpenseSearchProps {
 }
 
 export function ExpenseSearch({ value, onChange }: ExpenseSearchProps) {
-  return (
-    <div className="mb-4 relative max-w-md">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
-      <Input
-        type="text"
-        placeholder="Search"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="pl-10 bg-white w-full"
-      />
-    </div>
-  );
+  return <SearchInput value={value} onChange={onChange} placeholder="Search" />;
 }
 

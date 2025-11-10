@@ -50,7 +50,7 @@ export default function ExpensesPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [categories, setCategories] = useState<Record<string, Array<{ id: string; icon: string; name: string }>>>({});
 
-  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
+  const currencySymbol = getCurrencySymbol(user?.currency || "USD");
 
   // Load user categories - eagerly load before anything else
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function ExpensesPage() {
   // Filter expenses based on search query
   const filteredExpenses = expenses.filter((expense) => {
     const query = searchQuery.toLowerCase();
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
     return (
       expense.description.toLowerCase().includes(query) ||
       expense.category.toLowerCase().includes(query) ||
@@ -135,7 +135,7 @@ export default function ExpensesPage() {
     }
 
     // Convert from user's display currency to base currency (USD) for storage
-    const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "Dollar");
+    const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "USD");
 
     const response = await createExpenseAction({
       date: expense.date,
@@ -205,7 +205,7 @@ export default function ExpensesPage() {
 
   // Convert total expenses to user's currency
   const totalExpensesInUserCurrency = expenses.reduce((sum, expense) => {
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
     return sum + convertedAmount;
   }, 0);
 
@@ -293,7 +293,7 @@ export default function ExpensesPage() {
                 </TableRow>
               ) : (
                 sortedExpenses.map((expense) => {
-                  const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+                  const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
                   const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : expense.amount;
                   
                   // Find the category icon
@@ -309,7 +309,7 @@ export default function ExpensesPage() {
                       expense={expense}
                       displayAmount={safeDisplayAmount}
                       currencySymbol={currencySymbol}
-                      userCurrency={user?.currency || "Dollar"}
+                      userCurrency={user?.currency || "USD"}
                       categoryIcon={categoryIcon}
                       categoryColor={getCategoryColor(expense.category)}
                       categories={categories}

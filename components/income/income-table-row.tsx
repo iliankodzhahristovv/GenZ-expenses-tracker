@@ -4,10 +4,12 @@ import { useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { EditableDateField } from "../expenses/editable-date-field";
-import { EditableAmountField } from "../expenses/editable-amount-field";
-import { EditableCategoryField } from "../expenses/editable-category-field";
-import { EditableDescriptionField } from "../expenses/editable-description-field";
+import {
+  EditableDateField,
+  EditableAmountField,
+  EditableCategoryField,
+  EditableDescriptionField,
+} from "@/components/ui/editable-fields";
 import { convertToBaseCurrency } from "@/lib/currency-utils";
 
 interface Income {

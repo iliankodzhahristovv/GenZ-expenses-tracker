@@ -71,6 +71,11 @@ export default function DashboardPage() {
 
   // Calculate spending data from real expenses
   const spendingData = useMemo(() => {
+    // Helper function to convert ISO date string to local date (fixes timezone regression)
+    const toLocalDate = (isoDate: string) => {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -79,14 +84,14 @@ export default function DashboardPage() {
     const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
     const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
     
-    // Filter expenses by month
+    // Filter expenses by month (using local date to avoid timezone issues)
     const currentMonthExpenses = expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
+      const expenseDate = toLocalDate(expense.date);
       return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
     });
     
     const lastMonthExpenses = expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
+      const expenseDate = toLocalDate(expense.date);
       return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
     });
     
@@ -109,7 +114,7 @@ export default function DashboardPage() {
       const dailyTotals: { [key: number]: number } = {};
       
       expensesArray.forEach(expense => {
-        const expenseDate = new Date(expense.date);
+        const expenseDate = toLocalDate(expense.date);
         const day = expenseDate.getDate();
         if (!dailyTotals[day]) {
           dailyTotals[day] = 0;
@@ -169,13 +174,19 @@ export default function DashboardPage() {
 
   // Calculate current month total
   const currentMonthTotal = useMemo(() => {
+    // Helper function to convert ISO date string to local date (fixes timezone regression)
+    const toLocalDate = (isoDate: string) => {
+      const [year, month, day] = isoDate.split("-").map(Number);
+      return new Date(year, month - 1, day);
+    };
+
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
     
     return expenses
       .filter(expense => {
-        const expenseDate = new Date(expense.date);
+        const expenseDate = toLocalDate(expense.date);
         return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
       })
       .reduce((sum, expense) => {

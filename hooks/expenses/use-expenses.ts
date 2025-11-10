@@ -20,7 +20,7 @@ interface UseExpensesReturn {
   expenses: Expense[];
   isLoading: boolean;
   error: Error | null;
-  mutate: () => void;
+  mutate: () => Promise<Expense[] | undefined>;
 }
 
 /**
@@ -45,10 +45,10 @@ export function useExpenses(): UseExpensesReturn {
     SWR_KEYS.EXPENSES,
     fetchExpenses,
     {
-      revalidateOnFocus: true, // Revalidate when switching back to the tab
+      revalidateOnFocus: false,
       revalidateOnReconnect: false,
-      dedupingInterval: 2000, // 2 seconds - faster updates
-      refreshInterval: 0, // Don't auto-refresh, only on focus or manual mutate
+      dedupingInterval: 30000, // 30 seconds
+      refreshInterval: 0,
     }
   );
 

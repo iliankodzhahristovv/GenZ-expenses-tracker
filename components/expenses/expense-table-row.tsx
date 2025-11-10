@@ -4,10 +4,12 @@ import { useState } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { EditableDateField } from "./editable-date-field";
-import { EditableAmountField } from "./editable-amount-field";
-import { EditableCategoryField } from "./editable-category-field";
-import { EditableDescriptionField } from "./editable-description-field";
+import {
+  EditableDateField,
+  EditableAmountField,
+  EditableCategoryField,
+  EditableDescriptionField,
+} from "@/components/ui/editable-fields";
 import type { Expense } from "@/hooks/expenses";
 import { convertToBaseCurrency } from "@/lib/currency-utils";
 
@@ -38,16 +40,20 @@ export function ExpenseTableRow({
 }: ExpenseTableRowProps) {
   const [editingField, setEditingField] = useState<EditingField>(null);
 
-  const handleSaveField = (field: string, value: any) => {
-    let updatedExpense = { ...expense, [field]: value };
-    
+  const handleSaveField = <K extends keyof Expense>(field: K, value: Expense[K]) => {
     // If editing amount, convert from display currency back to base currency (USD)
     if (field === 'amount') {
-      const baseAmount = convertToBaseCurrency(value, userCurrency);
-      updatedExpense = { ...expense, amount: baseAmount };
+      // Narrow value to number type for amount field
+      const displayAmount = typeof value === 'number' ? value : parseFloat(String(value));
+      const baseAmount = convertToBaseCurrency(displayAmount, userCurrency);
+      const updatedExpense: Expense = { ...expense, amount: baseAmount };
+      onUpdate(updatedExpense);
+    } else {
+      // For other fields, update directly
+      const updatedExpense: Expense = { ...expense, [field]: value };
+      onUpdate(updatedExpense);
     }
     
-    onUpdate(updatedExpense);
     setEditingField(null);
   };
 

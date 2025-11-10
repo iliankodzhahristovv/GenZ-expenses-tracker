@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 interface EditableDescriptionFieldProps {
@@ -19,6 +19,13 @@ export function EditableDescriptionField({
   onClick,
 }: EditableDescriptionFieldProps) {
   const [editValue, setEditValue] = useState(value);
+
+  // Sync local state with prop changes when entering edit mode or when value changes
+  useEffect(() => {
+    if (isEditing) {
+      setEditValue(value);
+    }
+  }, [isEditing, value]);
 
   const handleSave = () => {
     if (editValue.trim()) {

@@ -28,9 +28,55 @@ export function AddExpenseDialog({
     description: "",
     category: "",
   });
+  const [error, setError] = useState<string>("");
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      // Clear form and errors when closing
+      setNewExpense({
+        date: new Date().toISOString().split('T')[0],
+        amount: "",
+        description: "",
+        category: "",
+      });
+      setError("");
+    }
+    onOpenChange(open);
+  };
 
   const handleAdd = () => {
+    // Clear previous errors
+    setError("");
+
+    // Validate description
+    const trimmedDescription = newExpense.description.trim();
+    if (!trimmedDescription) {
+      setError("Description is required");
+      return;
+    }
+
+    // Validate category
+    if (!newExpense.category) {
+      setError("Please select a category");
+      return;
+    }
+
+    // Validate amount
+    const parsedAmount = parseFloat(newExpense.amount);
+    if (!newExpense.amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError("Amount must be greater than zero");
+      return;
+    }
+
+    // Validate date
+    if (!newExpense.date) {
+      setError("Date is required");
+      return;
+    }
+
+    // All validations passed - call onAdd
     onAdd(newExpense);
+    
     // Reset form
     setNewExpense({
       date: new Date().toISOString().split('T')[0],
@@ -38,10 +84,11 @@ export function AddExpenseDialog({
       description: "",
       category: "",
     });
+    setError("");
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Add New Expense</DialogTitle>
@@ -57,7 +104,10 @@ export function AddExpenseDialog({
                 id="date"
                 type="date"
                 value={newExpense.date}
-                onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
+                onChange={(e) => {
+                  setNewExpense({ ...newExpense, date: e.target.value });
+                  setError("");
+                }}
                 className="[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
               />
             </div>
@@ -72,7 +122,10 @@ export function AddExpenseDialog({
                 step="0.01"
                 placeholder="0.00"
                 value={newExpense.amount}
-                onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
+                onChange={(e) => {
+                  setNewExpense({ ...newExpense, amount: e.target.value });
+                  setError("");
+                }}
                 className="pl-7"
               />
             </div>
@@ -83,12 +136,21 @@ export function AddExpenseDialog({
               id="description"
               placeholder="What was this expense for?"
               value={newExpense.description}
-              onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
+              onChange={(e) => {
+                setNewExpense({ ...newExpense, description: e.target.value });
+                setError("");
+              }}
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="category">Category</Label>
-            <Select value={newExpense.category} onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}>
+            <Select 
+              value={newExpense.category} 
+              onValueChange={(value) => {
+                setNewExpense({ ...newExpense, category: value });
+                setError("");
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select a category" />
               </SelectTrigger>
@@ -109,8 +171,13 @@ export function AddExpenseDialog({
             </Select>
           </div>
         </div>
+        {error && (
+          <div className="text-sm text-red-600 px-6 pb-2">
+            {error}
+          </div>
+        )}
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleAdd} className="bg-black hover:bg-gray-800">

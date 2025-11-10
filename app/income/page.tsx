@@ -52,7 +52,7 @@ export default function IncomePage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [categories, setCategories] = useState<Record<string, Array<{ id: string; icon: string; name: string }>>>({});
 
-  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
+  const currencySymbol = getCurrencySymbol(user?.currency || "USD");
 
   // Load categories - eagerly load before anything else
   useEffect(() => {
@@ -85,7 +85,7 @@ export default function IncomePage() {
   // Filter income
   const filteredIncome = income.filter((inc) => {
     const query = searchQuery.toLowerCase();
-    const convertedAmount = convertFromBaseCurrency(inc.amount, user?.currency || "Dollar");
+    const convertedAmount = convertFromBaseCurrency(inc.amount, user?.currency || "USD");
     return (
       inc.description.toLowerCase().includes(query) ||
       inc.category.toLowerCase().includes(query) ||
@@ -144,7 +144,7 @@ export default function IncomePage() {
       return;
     }
 
-    const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "Dollar");
+    const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "USD");
 
     const response = await createIncomeAction({
       date: inc.date,
@@ -294,7 +294,7 @@ export default function IncomePage() {
                 </TableRow>
               ) : (
                 sortedIncome.map((inc) => {
-                  const displayAmount = convertFromBaseCurrency(inc.amount, user?.currency || "Dollar");
+                  const displayAmount = convertFromBaseCurrency(inc.amount, user?.currency || "USD");
                   const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : inc.amount;
                   
                   let categoryIcon = "";
@@ -309,7 +309,7 @@ export default function IncomePage() {
                       income={inc}
                       displayAmount={safeDisplayAmount}
                       currencySymbol={currencySymbol}
-                      userCurrency={user?.currency || "Dollar"}
+                      userCurrency={user?.currency || "USD"}
                       categoryIcon={categoryIcon}
                       categoryColor={getCategoryColor(inc.category)}
                       categories={categories}
