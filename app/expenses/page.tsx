@@ -3,27 +3,19 @@
 import { useState, useEffect } from "react";
 import { ProtectedLayout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { useCurrentUser } from "@/hooks/auth";
-import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
+import { useExpenses, type Expense } from "@/hooks/expenses";
+import { getCurrencySymbol, convertFromBaseCurrency, convertToBaseCurrency } from "@/lib/currency-utils";
 import { getUserCategoriesAction } from "@/actions/categories";
-import { getExpensesAction, createExpenseAction, updateExpenseAction } from "@/actions/expenses";
-
-interface Expense {
-  id: string;
-  date: string;
-  amount: number;
-  description: string;
-  category: string;
-}
+import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
+import { ExpenseTableRow } from "@/components/expenses/expense-table-row";
+import { AddExpenseRow } from "@/components/expenses/add-expense-row";
+import { DeleteExpenseDialog } from "@/components/expenses/delete-expense-dialog";
+import { ExpenseSearch } from "@/components/expenses/expense-search";
 
 
 const getCategoryColor = (category: string) => {
@@ -49,64 +41,46 @@ const getCategoryColor = (category: string) => {
  */
 export default function ExpensesPage() {
   const { user } = useCurrentUser();
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const { expenses, isLoading, mutate: refreshExpenses } = useExpenses();
+  const [isAddingRow, setIsAddingRow] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sortField, setSortField] = useState<"date" | "amount" | "category" | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const [isLoading, setIsLoading] = useState(true);
-  const [newExpense, setNewExpense] = useState({
-    date: new Date().toISOString().split('T')[0],
-    amount: "",
-    description: "",
-    category: "",
-  });
+  const [sortField, setSortField] = useState<"date" | "amount" | "category" | null>("date");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [categories, setCategories] = useState<Record<string, Array<{ id: string; icon: string; name: string }>>>({});
 
-  const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
+  const currencySymbol = getCurrencySymbol(user?.currency || "USD");
 
-  // Load user categories and expenses from database
+  // Load user categories - eagerly load before anything else
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
-      
-      // Load categories
+    const loadCategories = async () => {
       const categoriesResponse = await getUserCategoriesAction();
       if (categoriesResponse.success && categoriesResponse.data) {
         setCategories(categoriesResponse.data);
       }
-
-      // Load expenses
-      const expensesResponse = await getExpensesAction();
-      if (expensesResponse.success && expensesResponse.data) {
-        setExpenses(expensesResponse.data);
-      }
-
-      setIsLoading(false);
     };
 
-    loadData();
+    loadCategories();
   }, []);
+
+  // Don't render table until categories are loaded
+  const areCategoriesLoaded = Object.keys(categories).length > 0;
 
   // Filter expenses based on search query
   const filteredExpenses = expenses.filter((expense) => {
     const query = searchQuery.toLowerCase();
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
-    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : expense.amount;
+    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
     return (
       expense.description.toLowerCase().includes(query) ||
       expense.category.toLowerCase().includes(query) ||
       expense.date.includes(query) ||
-      safeAmount.toString().startsWith(query)
+      convertedAmount.toString().startsWith(query)
     );
   });
 
-  // Sort expenses
+  // Sort expenses - default sort by date descending (newest first)
   const sortedExpenses = [...filteredExpenses].sort((a, b) => {
-    if (!sortField) return 0;
-
     let comparison = 0;
     if (sortField === "date") {
       comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -141,55 +115,33 @@ export default function ExpensesPage() {
     );
   };
 
-  const handleAddExpense = async () => {
-    // Trim and validate inputs
-    const trimmedDescription = newExpense.description.trim();
-    const trimmedAmount = newExpense.amount.trim();
+  const handleAddExpense = async (expense: { date: string; amount: string; description: string; category: string }) => {
+    const trimmedDescription = expense.description.trim();
+    const parsedAmount = parseFloat(expense.amount);
     
     if (!trimmedDescription) {
-      toast.error("Description is required", {
-        description: "Please enter a description for this expense.",
-      });
+      toast.error("Description is required");
       return;
     }
 
-    if (!newExpense.category) {
-      toast.error("Category is required", {
-        description: "Please select a category for this expense.",
-      });
+    if (!expense.category) {
+      toast.error("Category is required");
       return;
     }
 
-    if (!trimmedAmount) {
-      toast.error("Amount is required", {
-        description: "Please enter an amount for this expense.",
-      });
+    if (!isFinite(parsedAmount) || parsedAmount <= 0) {
+      toast.error("Amount must be greater than zero");
       return;
     }
 
-    // Parse and validate amount
-    const parsedAmount = parseFloat(trimmedAmount);
-    
-    if (!isFinite(parsedAmount)) {
-      toast.error("Invalid amount", {
-        description: "Please enter a valid number for the amount.",
-      });
-      return;
-    }
+    // Convert from user's display currency to base currency (USD) for storage
+    const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "USD");
 
-    if (parsedAmount <= 0) {
-      toast.error("Invalid amount", {
-        description: "Amount must be greater than zero.",
-      });
-      return;
-    }
-
-    // Create expense in database
     const response = await createExpenseAction({
-      date: newExpense.date,
-      amount: parsedAmount,
+      date: expense.date,
+      amount: baseAmount,
       description: trimmedDescription,
-      category: newExpense.category,
+      category: expense.category,
     });
 
     if (!response.success) {
@@ -199,57 +151,18 @@ export default function ExpensesPage() {
       return;
     }
 
-    // Add to local state
-    if (response.data) {
-      setExpenses((prev) => [response.data, ...prev]);
-    }
-
-    setNewExpense({
-      date: new Date().toISOString().split('T')[0],
-      amount: "",
-      description: "",
-      category: "",
-    });
-    setIsDialogOpen(false);
-    toast.success("Expense added", {
-      description: `Added ${trimmedDescription} - ${currencySymbol}${parsedAmount.toFixed(2)}`,
-    });
+    await refreshExpenses();
+    setIsAddingRow(false);
+    toast.success("Expense added");
   };
 
-  const handleEditExpense = async () => {
-    if (!editingExpense) return;
-
-    // Validate inputs
-    const trimmedDescription = editingExpense.description.trim();
-    
-    if (!trimmedDescription) {
-      toast.error("Description is required", {
-        description: "Please enter a description for this expense.",
-      });
-      return;
-    }
-
-    if (!editingExpense.category) {
-      toast.error("Category is required", {
-        description: "Please select a category for this expense.",
-      });
-      return;
-    }
-
-    if (!isFinite(editingExpense.amount) || editingExpense.amount <= 0) {
-      toast.error("Invalid amount", {
-        description: "Amount must be greater than zero.",
-      });
-      return;
-    }
-
-    // Update expense in database
+  const handleUpdateExpense = async (updatedExpense: Expense) => {
     const response = await updateExpenseAction({
-      id: editingExpense.id,
-      date: editingExpense.date,
-      amount: editingExpense.amount,
-      description: trimmedDescription,
-      category: editingExpense.category,
+      id: updatedExpense.id,
+      date: updatedExpense.date,
+      amount: updatedExpense.amount,
+      description: updatedExpense.description.trim(),
+      category: updatedExpense.category,
     });
 
     if (!response.success) {
@@ -259,297 +172,155 @@ export default function ExpensesPage() {
       return;
     }
 
-    // Update local state
-    setExpenses((prev) =>
-      prev.map((exp) => (exp.id === editingExpense.id ? editingExpense : exp))
-    );
+    await refreshExpenses();
+  };
+
+  const openDeleteDialog = (expense: Expense, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpenseToDelete(expense);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+
+    const response = await deleteExpenseAction(expenseToDelete.id);
+
+    if (!response.success) {
+      toast.error("Failed to delete expense", {
+        description: response.error || "Something went wrong",
+      });
+      return;
+    }
+
+    // Refresh expenses data from server (updates both this page and dashboard)
+    await refreshExpenses();
     
-    setIsEditDialogOpen(false);
-    setEditingExpense(null);
-    toast.success("Expense updated", {
-      description: `Updated ${trimmedDescription} - ${currencySymbol}${editingExpense.amount.toFixed(2)}`,
+    setIsDeleteDialogOpen(false);
+    setExpenseToDelete(null);
+    toast.success("Expense deleted", {
+      description: `Deleted ${expenseToDelete.description}`,
     });
   };
 
-  const openEditDialog = (expense: Expense) => {
-    setEditingExpense({ ...expense });
-    setIsEditDialogOpen(true);
-  };
-
-  // Convert total expenses to user's currency using integer minor-units (cents) for precision
-  const totalExpensesInUserCurrency = expenses.reduce((sumInCents, expense) => {
+  // Convert total expenses to user's currency
+  const totalExpensesInUserCurrency = expenses.reduce((sum, expense) => {
     const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
-    const safeAmount = Number.isFinite(convertedAmount) ? convertedAmount : expense.amount;
-    // Convert to cents (minor units) to avoid floating-point precision errors
-    const amountInCents = Math.round(safeAmount * 100);
-    return sumInCents + amountInCents;
-  }, 0) / 100; // Convert back to major units (dollars, euros, etc.)
+    return sum + convertedAmount;
+  }, 0);
 
   return (
-    <ProtectedLayout>
+    <ProtectedLayout
+      headerActions={
+        <Button 
+          size="icon" 
+          className="h-7 w-7 bg-black hover:bg-gray-800"
+          onClick={() => setIsAddingRow(true)}
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      }
+    >
       <Toaster />
-      <div className="p-6 bg-[#F7F7F7] min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          {/* Search and Actions Bar */}
-          <div className="mb-4 flex items-center gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white"
-              />
-            </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-black hover:bg-gray-800">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Expense
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Add New Expense</DialogTitle>
-                  <DialogDescription>
-                    Enter the details of your expense below.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="date">Date</Label>
-                    <div className="relative">
-                      <Input
-                        id="date"
-                        type="date"
-                        value={newExpense.date}
-                        onChange={(e) => setNewExpense({ ...newExpense, date: e.target.value })}
-                        className="[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="amount">Amount</Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
-                      <Input
-                        id="amount"
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={newExpense.amount}
-                        onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
-                        className="pl-7"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input
-                      id="description"
-                      placeholder="What was this expense for?"
-                      value={newExpense.description}
-                      onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select value={newExpense.category} onValueChange={(value) => setNewExpense({ ...newExpense, category: value })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.keys(categories).sort((a, b) => a.localeCompare(b)).map((groupName) => (
-                          <SelectGroup key={groupName}>
-                            <SelectLabel>{groupName}</SelectLabel>
-                            {categories[groupName]
-                              ?.sort((a, b) => a.name.localeCompare(b.name))
-                              .map((category) => (
-                                <SelectItem key={category.id} value={category.name}>
-                                  {category.icon} {category.name}
-                                </SelectItem>
-                              ))}
-                          </SelectGroup>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddExpense} className="bg-black hover:bg-gray-800">
-                    Add Expense
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+      <div className="px-6 py-6 bg-[#F7F7F7] min-h-screen">
+        <ExpenseSearch value={searchQuery} onChange={setSearchQuery} />
 
-            {/* Edit Expense Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-              <DialogContent className="sm:max-w-[500px]">
-                <DialogHeader>
-                  <DialogTitle>Edit Expense</DialogTitle>
-                  <DialogDescription>
-                    Update the details of your expense below.
-                  </DialogDescription>
-                </DialogHeader>
-                {editingExpense && (
-                  <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-date">Date</Label>
-                      <div className="relative">
-                        <Input
-                          id="edit-date"
-                          type="date"
-                          value={editingExpense.date}
-                          onChange={(e) => setEditingExpense({ ...editingExpense, date: e.target.value })}
-                          className="[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-3 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-amount">Amount</Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">{currencySymbol}</span>
-                        <Input
-                          id="edit-amount"
-                          type="number"
-                          step="0.01"
-                          placeholder="0.00"
-                          value={editingExpense.amount}
-                          onChange={(e) => setEditingExpense({ ...editingExpense, amount: parseFloat(e.target.value) || 0 })}
-                          className="pl-7"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-description">Description</Label>
-                      <Input
-                        id="edit-description"
-                        placeholder="What was this expense for?"
-                        value={editingExpense.description}
-                        onChange={(e) => setEditingExpense({ ...editingExpense, description: e.target.value })}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-category">Category</Label>
-                      <Select value={editingExpense.category} onValueChange={(value) => setEditingExpense({ ...editingExpense, category: value })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.keys(categories).sort((a, b) => a.localeCompare(b)).map((groupName) => (
-                            <SelectGroup key={groupName}>
-                              <SelectLabel>{groupName}</SelectLabel>
-                              {categories[groupName]
-                                ?.sort((a, b) => a.name.localeCompare(b.name))
-                                .map((category) => (
-                                  <SelectItem key={category.id} value={category.name}>
-                                    {category.icon} {category.name}
-                                  </SelectItem>
-                                ))}
-                            </SelectGroup>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                )}
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleEditExpense} className="bg-black hover:bg-gray-800">
-                    Save Changes
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
+        <DeleteExpenseDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+          onConfirm={handleDeleteExpense}
+        />
 
-          {/* Expenses Table */}
-          <div className="bg-white rounded-lg border border-gray-200">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead>
+        {/* Expenses Table */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-b border-gray-200 bg-white hover:bg-white">
+                  <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">
                     <Button
-                      variant="ghost"
-                      onClick={() => handleSort("date")}
-                      className="hover:bg-transparent p-0 h-auto font-medium"
-                    >
-                      Date
-                      {getSortIcon("date")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleSort("amount")}
-                      className="hover:bg-transparent p-0 h-auto font-medium"
-                    >
-                      Amount
-                      {getSortIcon("amount")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleSort("category")}
-                      className="hover:bg-transparent p-0 h-auto font-medium"
-                    >
-                      Category
-                      {getSortIcon("category")}
-                    </Button>
-                  </TableHead>
-                  <TableHead>Description</TableHead>
+                    variant="ghost"
+                    onClick={() => handleSort("date")}
+                    className="hover:bg-transparent p-0 h-auto font-medium text-xs uppercase"
+                  >
+                    Date
+                    {getSortIcon("date")}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("amount")}
+                    className="hover:bg-transparent p-0 h-auto font-medium text-xs uppercase"
+                  >
+                    Amount
+                    {getSortIcon("amount")}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">
+                  <Button
+                    variant="ghost"
+                    onClick={() => handleSort("category")}
+                    className="hover:bg-transparent p-0 h-auto font-medium text-xs uppercase"
+                  >
+                    Category
+                    {getSortIcon("category")}
+                  </Button>
+                </TableHead>
+                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">Description</TableHead>
+                <TableHead className="w-12"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isAddingRow && areCategoriesLoaded && (
+                <AddExpenseRow
+                  currencySymbol={currencySymbol}
+                  categories={categories}
+                  onSave={handleAddExpense}
+                  onCancel={() => setIsAddingRow(false)}
+                />
+              )}
+              {(isLoading || !areCategoriesLoaded) ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                    Loading expenses...
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedExpenses.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-12 text-gray-500">
-                      {searchQuery ? "No expenses found matching your search." : "No expenses yet. Add your first expense to get started!"}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedExpenses.map((expense) => {
-                    const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
-                    const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : expense.amount;
-                    return (
-                      <TableRow
-                        key={expense.id}
-                        className="cursor-pointer hover:bg-gray-50"
-                        onClick={() => openEditDialog(expense)}
-                      >
-                        <TableCell className="font-medium">
-                          {new Date(expense.date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric'
-                          })}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          {currencySymbol}{safeDisplayAmount.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getCategoryColor(expense.category)}>
-                            {expense.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-md truncate">
-                          {expense.description}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+              ) : sortedExpenses.length === 0 && !isAddingRow ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-12 text-gray-500">
+                    {searchQuery ? "No expenses found matching your search." : "No expenses yet. Add your first expense to get started!"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedExpenses.map((expense) => {
+                  const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "USD");
+                  const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : expense.amount;
+                  
+                  // Find the category icon
+                  let categoryIcon = "";
+                  Object.values(categories).forEach((categoryGroup) => {
+                    const found = categoryGroup.find((cat) => cat.name === expense.category);
+                    if (found) categoryIcon = found.icon;
+                  });
+                  
+                  return (
+                    <ExpenseTableRow
+                      key={expense.id}
+                      expense={expense}
+                      displayAmount={safeDisplayAmount}
+                      currencySymbol={currencySymbol}
+                      userCurrency={user?.currency || "USD"}
+                      categoryIcon={categoryIcon}
+                      categoryColor={getCategoryColor(expense.category)}
+                      categories={categories}
+                      onUpdate={handleUpdateExpense}
+                      onDelete={openDeleteDialog}
+                    />
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
     </ProtectedLayout>

@@ -54,7 +54,7 @@ export default function IncomePage() {
 
   const currencySymbol = getCurrencySymbol(user?.currency || "USD");
 
-  // Load categories - eagerly load before anything else
+  // Load categories
   useEffect(() => {
     const loadCategories = async () => {
       const categoriesResponse = await getUserCategoriesAction();
@@ -64,9 +64,6 @@ export default function IncomePage() {
     };
     loadCategories();
   }, []);
-
-  // Don't render table until categories are loaded
-  const areCategoriesLoaded = Object.keys(categories).length > 0;
 
   // Load income
   const loadIncome = async () => {
@@ -272,7 +269,7 @@ export default function IncomePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isAddingRow && areCategoriesLoaded && (
+              {isAddingRow && (
                 <AddIncomeRow
                   currencySymbol={currencySymbol}
                   categories={categories}
@@ -280,13 +277,7 @@ export default function IncomePage() {
                   onCancel={() => setIsAddingRow(false)}
                 />
               )}
-              {(isLoading || !areCategoriesLoaded) ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-gray-500">
-                    Loading income...
-                  </TableCell>
-                </TableRow>
-              ) : sortedIncome.length === 0 && !isAddingRow ? (
+              {sortedIncome.length === 0 && !isAddingRow ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-gray-500">
                     {searchQuery ? "No income found matching your search." : "No income entries yet. Add your first income to get started!"}

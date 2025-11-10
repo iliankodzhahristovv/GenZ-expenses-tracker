@@ -20,3 +20,8 @@ ALTER TABLE public.categories
 ADD CONSTRAINT unique_user_category_slug UNIQUE (user_id, category_slug);
 
 
+
+
+
+
+
