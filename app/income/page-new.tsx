@@ -70,7 +70,7 @@ export default function IncomePage() {
     setIsLoading(true);
     const response = await getIncomeAction();
     if (response.success && response.data) {
-      setIncome(response.data as any);
+      setIncome(response.data);
     }
     setIsLoading(false);
   };

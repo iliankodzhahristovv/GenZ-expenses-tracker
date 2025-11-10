@@ -110,7 +110,7 @@ export default function DashboardPage() {
     const daysInLastMonth = new Date(lastMonthYear, lastMonth + 1, 0).getDate();
     
     // Calculate cumulative spending by day
-    const calculateCumulativeByDay = (expensesArray: any[], daysInMonth: number) => {
+    const calculateCumulativeByDay = (expensesArray: Array<{ date: string; amount: number }>, daysInMonth: number) => {
       const dailyTotals: { [key: number]: number } = {};
       
       expensesArray.forEach(expense => {
