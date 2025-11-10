@@ -9,9 +9,10 @@ import { Header } from "./header";
 
 interface ProtectedLayoutProps {
   children: React.ReactNode;
+  headerActions?: React.ReactNode;
 }
 
-export function ProtectedLayout({ children }: ProtectedLayoutProps) {
+export function ProtectedLayout({ children, headerActions }: ProtectedLayoutProps) {
   const { user, loading } = useCurrentUser();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -47,7 +48,7 @@ export function ProtectedLayout({ children }: ProtectedLayoutProps) {
     <div className="flex h-screen overflow-hidden bg-gray-50">
       <Sidebar isCollapsed={isCollapsed} />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} />
+        <Header isCollapsed={isCollapsed} onToggle={() => setIsCollapsed(!isCollapsed)} actions={headerActions} />
         <main className="flex-1 overflow-y-auto">
           {children}
         </main>

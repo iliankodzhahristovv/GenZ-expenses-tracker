@@ -35,3 +35,8 @@ COMMENT ON FUNCTION save_user_categories_transaction(UUID, JSONB) IS
   'Atomically replaces all categories for a user. Either all categories are saved or none are (transaction rollback on error).';
 
 
+
+
+
+
+

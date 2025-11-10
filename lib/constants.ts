@@ -31,6 +31,9 @@ export const SWR_KEYS = {
   USERS: "users",
   USER: "user",
   
+  // Expenses keys
+  EXPENSES: "expenses",
+  
   // Add your SWR keys here
   // Example: USER_PROFILE: "user-profile",
 } as const;

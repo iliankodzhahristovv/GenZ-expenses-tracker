@@ -8,6 +8,7 @@ import { ROUTES, APP_NAME } from "@/lib/constants";
 interface HeaderProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  actions?: React.ReactNode;
 }
 
 const getPageInfo = (pathname: string) => {
@@ -27,7 +28,7 @@ const getPageInfo = (pathname: string) => {
   }
 };
 
-export function Header({ isCollapsed, onToggle }: HeaderProps) {
+export function Header({ isCollapsed, onToggle, actions }: HeaderProps) {
   const pathname = usePathname();
   const pageInfo = getPageInfo(pathname);
 
@@ -47,8 +48,9 @@ export function Header({ isCollapsed, onToggle }: HeaderProps) {
           )}
         </Button>
         
-        <div className="flex items-center">
+        <div className="flex items-center gap-3">
           <span className="text-base font-bold text-gray-900">{pageInfo.title}</span>
+          {actions && <div className="flex items-center">{actions}</div>}
         </div>
       </div>
     </header>

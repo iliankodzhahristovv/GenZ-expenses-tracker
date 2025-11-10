@@ -2,186 +2,120 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-import { ApiResponse, ApiResponseBuilder } from "@/types/common.types";
-import { ExpenseUI } from "@/models/expense-ui.model";
-import { ExpenseUIMapper } from "@/mappers/expense-ui.mapper";
 
-/**
- * Zod schema for expense creation
- */
-const CreateExpenseSchema = z.object({
-  date: z.string().min(1, "Date is required"),
-  amount: z.number().positive("Amount must be positive"),
-  description: z.string().min(1, "Description is required").trim(),
-  category: z.string().min(1, "Category is required"),
-});
+export interface ExpenseData {
+  id?: string;
+  date: string;
+  amount: number;
+  description: string;
+  category: string;
+}
 
-/**
- * Zod schema for expense update
- */
-const UpdateExpenseSchema = z.object({
-  id: z.string().uuid("Invalid expense ID"),
-  date: z.string().min(1, "Date is required"),
-  amount: z.number().positive("Amount must be positive"),
-  description: z.string().min(1, "Description is required").trim(),
-  category: z.string().min(1, "Category is required"),
-});
-
-export type CreateExpenseInput = z.infer<typeof CreateExpenseSchema>;
-export type UpdateExpenseInput = z.infer<typeof UpdateExpenseSchema>;
-
-/**
- * Explicit columns to select from expenses table
- */
-const EXPENSE_COLUMNS = "id, user_id, date, amount, description, category, created_at, updated_at";
-
-/**
- * Get all expenses for the current user
- */
-export async function getExpensesAction(): Promise<ApiResponse<ExpenseUI[]>> {
+export async function getExpensesAction() {
   try {
     const supabase = await createClient();
     
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      return ApiResponseBuilder.failure("User not authenticated");
+      return { success: false, error: "User not authenticated" };
     }
 
     const { data, error } = await supabase
       .from("expenses")
-      .select(EXPENSE_COLUMNS)
+      .select("*")
       .eq("user_id", user.id)
-      .order("date", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching expenses:", error);
-      return ApiResponseBuilder.failure(error.message);
+      return { success: false, error: error.message };
     }
 
-    const expenses = ExpenseUIMapper.fromDatabaseArray(data || []);
-    return ApiResponseBuilder.success(expenses);
+    return { success: true, data: data || [] };
   } catch (error) {
-    console.error("Error in getExpensesAction:", error);
-    return ApiResponseBuilder.failure("Failed to fetch expenses");
+    return { success: false, error: "Failed to fetch expenses" };
   }
 }
 
-/**
- * Create a new expense
- */
-export async function createExpenseAction(input: CreateExpenseInput): Promise<ApiResponse<ExpenseUI>> {
+export async function createExpenseAction(expense: ExpenseData) {
   try {
-    // Validate input
-    const validationResult = CreateExpenseSchema.safeParse(input);
-    if (!validationResult.success) {
-      return ApiResponseBuilder.failure(
-        validationResult.error.errors[0]?.message || "Invalid input"
-      );
-    }
-
-    const validatedData = validationResult.data;
     const supabase = await createClient();
     
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      return ApiResponseBuilder.failure("User not authenticated");
+      return { success: false, error: "User not authenticated" };
     }
 
     const { data, error } = await supabase
       .from("expenses")
       .insert({
         user_id: user.id,
-        date: validatedData.date,
-        amount: validatedData.amount,
-        description: validatedData.description,
-        category: validatedData.category,
+        date: expense.date,
+        amount: expense.amount,
+        description: expense.description,
+        category: expense.category,
       })
-      .select(EXPENSE_COLUMNS)
+      .select()
       .single();
 
     if (error) {
-      console.error("Error creating expense:", error);
-      return ApiResponseBuilder.failure(error.message);
+      return { success: false, error: error.message };
     }
 
     revalidatePath("/expenses");
-    const expense = ExpenseUIMapper.fromDatabase(data);
-    return ApiResponseBuilder.success(expense);
+    return { success: true, data };
   } catch (error) {
-    console.error("Error in createExpenseAction:", error);
-    return ApiResponseBuilder.failure("Failed to create expense");
+    return { success: false, error: "Failed to create expense" };
   }
 }
 
-/**
- * Update an existing expense
- */
-export async function updateExpenseAction(input: UpdateExpenseInput): Promise<ApiResponse<ExpenseUI>> {
+export async function updateExpenseAction(expense: ExpenseData) {
   try {
-    // Validate input
-    const validationResult = UpdateExpenseSchema.safeParse(input);
-    if (!validationResult.success) {
-      return ApiResponseBuilder.failure(
-        validationResult.error.errors[0]?.message || "Invalid input"
-      );
-    }
-
-    const validatedData = validationResult.data;
     const supabase = await createClient();
     
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      return ApiResponseBuilder.failure("User not authenticated");
+      return { success: false, error: "User not authenticated" };
+    }
+
+    if (!expense.id) {
+      return { success: false, error: "Expense ID is required" };
     }
 
     const { data, error } = await supabase
       .from("expenses")
       .update({
-        date: validatedData.date,
-        amount: validatedData.amount,
-        description: validatedData.description,
-        category: validatedData.category,
+        date: expense.date,
+        amount: expense.amount,
+        description: expense.description,
+        category: expense.category,
       })
-      .eq("id", validatedData.id)
+      .eq("id", expense.id)
       .eq("user_id", user.id)
-      .select(EXPENSE_COLUMNS)
+      .select()
       .single();
 
     if (error) {
-      console.error("Error updating expense:", error);
-      return ApiResponseBuilder.failure(error.message);
+      return { success: false, error: error.message };
     }
 
     revalidatePath("/expenses");
-    const expense = ExpenseUIMapper.fromDatabase(data);
-    return ApiResponseBuilder.success(expense);
+    return { success: true, data };
   } catch (error) {
-    console.error("Error in updateExpenseAction:", error);
-    return ApiResponseBuilder.failure("Failed to update expense");
+    return { success: false, error: "Failed to update expense" };
   }
 }
 
-/**
- * Delete an expense
- */
-export async function deleteExpenseAction(expenseId: string): Promise<ApiResponse<void>> {
+export async function deleteExpenseAction(expenseId: string) {
   try {
-    // Validate expense ID
-    const validationResult = z.string().uuid().safeParse(expenseId);
-    if (!validationResult.success) {
-      return ApiResponseBuilder.failure("Invalid expense ID");
-    }
-
     const supabase = await createClient();
     
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     
     if (userError || !user) {
-      return ApiResponseBuilder.failure("User not authenticated");
+      return { success: false, error: "User not authenticated" };
     }
 
     const { error } = await supabase
@@ -191,14 +125,13 @@ export async function deleteExpenseAction(expenseId: string): Promise<ApiRespons
       .eq("user_id", user.id);
 
     if (error) {
-      console.error("Error deleting expense:", error);
-      return ApiResponseBuilder.failure(error.message);
+      return { success: false, error: error.message };
     }
 
     revalidatePath("/expenses");
-    return ApiResponseBuilder.success(undefined as void);
+    return { success: true };
   } catch (error) {
-    console.error("Error in deleteExpenseAction:", error);
-    return ApiResponseBuilder.failure("Failed to delete expense");
+    return { success: false, error: "Failed to delete expense" };
   }
 }
+

@@ -8,43 +8,45 @@ import { Plus, ChevronsUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { useCurrentUser } from "@/hooks/auth";
-import { useExpenses, type Expense } from "@/hooks/expenses";
 import { getCurrencySymbol, convertFromBaseCurrency, convertToBaseCurrency } from "@/lib/currency-utils";
 import { getUserCategoriesAction } from "@/actions/categories";
-import { createExpenseAction, updateExpenseAction, deleteExpenseAction } from "@/actions/expenses";
-import { ExpenseTableRow } from "@/components/expenses/expense-table-row";
-import { AddExpenseRow } from "@/components/expenses/add-expense-row";
-import { DeleteExpenseDialog } from "@/components/expenses/delete-expense-dialog";
-import { ExpenseSearch } from "@/components/expenses/expense-search";
+import { getIncomeAction, createIncomeAction, updateIncomeAction, deleteIncomeAction } from "@/actions/income";
+import { IncomeTableRow } from "@/components/income/income-table-row";
+import { AddIncomeRow } from "@/components/income/add-income-row";
+import { DeleteIncomeDialog } from "@/components/income/delete-income-dialog";
+import { IncomeSearch } from "@/components/income/income-search";
 
+interface Income {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+  category: string;
+}
 
 const getCategoryColor = (category: string) => {
   const colors: { [key: string]: string } = {
-    "Office Supplies": "bg-blue-100 text-blue-700",
-    "Marketing & Advertising": "bg-purple-100 text-purple-700",
-    "Software & Subscriptions": "bg-indigo-100 text-indigo-700",
-    "Travel & Transportation": "bg-cyan-100 text-cyan-700",
-    "Client Entertainment": "bg-pink-100 text-pink-700",
-    "Professional Services": "bg-amber-100 text-amber-700",
-    "Utilities & Rent": "bg-orange-100 text-orange-700",
-    "Equipment & Hardware": "bg-green-100 text-green-700",
-    "Employee Benefits": "bg-emerald-100 text-emerald-700",
+    "Client Projects": "bg-blue-100 text-blue-700",
+    "Recurring Revenue": "bg-green-100 text-green-700",
+    "Consulting": "bg-purple-100 text-purple-700",
+    "Product Sales": "bg-indigo-100 text-indigo-700",
+    "Service Fees": "bg-cyan-100 text-cyan-700",
+    "Licensing": "bg-amber-100 text-amber-700",
+    "Commission": "bg-orange-100 text-orange-700",
+    "Grants & Funding": "bg-emerald-100 text-emerald-700",
+    "Investment Income": "bg-pink-100 text-pink-700",
     "Other": "bg-gray-100 text-gray-700",
   };
   return colors[category] || "bg-gray-100 text-gray-700";
 };
 
-/**
- * Expenses Page
- * 
- * Protected page - requires authentication
- */
-export default function ExpensesPage() {
+export default function IncomePage() {
   const { user } = useCurrentUser();
-  const { expenses, isLoading, mutate: refreshExpenses } = useExpenses();
+  const [income, setIncome] = useState<Income[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddingRow, setIsAddingRow] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
+  const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<"date" | "amount" | "category" | null>("date");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
@@ -52,7 +54,7 @@ export default function ExpensesPage() {
 
   const currencySymbol = getCurrencySymbol(user?.currency || "Dollar");
 
-  // Load user categories - eagerly load before anything else
+  // Load categories
   useEffect(() => {
     const loadCategories = async () => {
       const categoriesResponse = await getUserCategoriesAction();
@@ -60,27 +62,37 @@ export default function ExpensesPage() {
         setCategories(categoriesResponse.data);
       }
     };
-
     loadCategories();
   }, []);
 
-  // Don't render table until categories are loaded
-  const areCategoriesLoaded = Object.keys(categories).length > 0;
+  // Load income
+  const loadIncome = async () => {
+    setIsLoading(true);
+    const response = await getIncomeAction();
+    if (response.success && response.data) {
+      setIncome(response.data as any);
+    }
+    setIsLoading(false);
+  };
 
-  // Filter expenses based on search query
-  const filteredExpenses = expenses.filter((expense) => {
+  useEffect(() => {
+    loadIncome();
+  }, []);
+
+  // Filter income
+  const filteredIncome = income.filter((inc) => {
     const query = searchQuery.toLowerCase();
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
+    const convertedAmount = convertFromBaseCurrency(inc.amount, user?.currency || "Dollar");
     return (
-      expense.description.toLowerCase().includes(query) ||
-      expense.category.toLowerCase().includes(query) ||
-      expense.date.includes(query) ||
+      inc.description.toLowerCase().includes(query) ||
+      inc.category.toLowerCase().includes(query) ||
+      inc.date.includes(query) ||
       convertedAmount.toString().startsWith(query)
     );
   });
 
-  // Sort expenses - default sort by date descending (newest first)
-  const sortedExpenses = [...filteredExpenses].sort((a, b) => {
+  // Sort income
+  const sortedIncome = [...filteredIncome].sort((a, b) => {
     let comparison = 0;
     if (sortField === "date") {
       comparison = new Date(a.date).getTime() - new Date(b.date).getTime();
@@ -89,11 +101,9 @@ export default function ExpensesPage() {
     } else if (sortField === "category") {
       comparison = a.category.localeCompare(b.category);
     }
-
     return sortDirection === "asc" ? comparison : -comparison;
   });
 
-  // Toggle sort
   const handleSort = (field: "date" | "amount" | "category") => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -103,7 +113,6 @@ export default function ExpensesPage() {
     }
   };
 
-  // Get sort icon
   const getSortIcon = (field: "date" | "amount" | "category") => {
     if (sortField !== field) {
       return <ChevronsUpDown className="ml-2 h-4 w-4" />;
@@ -115,99 +124,88 @@ export default function ExpensesPage() {
     );
   };
 
-  const handleAddExpense = async (expense: { date: string; amount: string; description: string; category: string }) => {
-    const trimmedDescription = expense.description.trim();
-    const parsedAmount = parseFloat(expense.amount);
+  const handleAddIncome = async (inc: { date: string; amount: string; description: string; category: string }) => {
+    const trimmedDescription = inc.description.trim();
+    const parsedAmount = parseFloat(inc.amount);
     
     if (!trimmedDescription) {
       toast.error("Description is required");
       return;
     }
-
-    if (!expense.category) {
+    if (!inc.category) {
       toast.error("Category is required");
       return;
     }
-
     if (!isFinite(parsedAmount) || parsedAmount <= 0) {
       toast.error("Amount must be greater than zero");
       return;
     }
 
-    // Convert from user's display currency to base currency (USD) for storage
     const baseAmount = convertToBaseCurrency(parsedAmount, user?.currency || "Dollar");
 
-    const response = await createExpenseAction({
-      date: expense.date,
+    const response = await createIncomeAction({
+      date: inc.date,
       amount: baseAmount,
       description: trimmedDescription,
-      category: expense.category,
+      category: inc.category,
     });
 
     if (!response.success) {
-      toast.error("Failed to add expense", {
+      toast.error("Failed to add income", {
         description: response.error || "Something went wrong",
       });
       return;
     }
 
-    await refreshExpenses();
+    await loadIncome();
     setIsAddingRow(false);
-    toast.success("Expense added");
+    toast.success("Income added");
   };
 
-  const handleUpdateExpense = async (updatedExpense: Expense) => {
-    const response = await updateExpenseAction({
-      id: updatedExpense.id,
-      date: updatedExpense.date,
-      amount: updatedExpense.amount,
-      description: updatedExpense.description.trim(),
-      category: updatedExpense.category,
+  const handleUpdateIncome = async (updatedIncome: Income) => {
+    const response = await updateIncomeAction({
+      id: updatedIncome.id,
+      date: updatedIncome.date,
+      amount: updatedIncome.amount,
+      description: updatedIncome.description.trim(),
+      category: updatedIncome.category,
     });
 
     if (!response.success) {
-      toast.error("Failed to update expense", {
+      toast.error("Failed to update income", {
         description: response.error || "Something went wrong",
       });
       return;
     }
 
-    await refreshExpenses();
+    await loadIncome();
   };
 
-  const openDeleteDialog = (expense: Expense, e: React.MouseEvent) => {
+  const openDeleteDialog = (inc: Income, e: React.MouseEvent) => {
     e.stopPropagation();
-    setExpenseToDelete(expense);
+    setIncomeToDelete(inc);
     setIsDeleteDialogOpen(true);
   };
 
-  const handleDeleteExpense = async () => {
-    if (!expenseToDelete) return;
+  const handleDeleteIncome = async () => {
+    if (!incomeToDelete) return;
 
-    const response = await deleteExpenseAction(expenseToDelete.id);
+    const response = await deleteIncomeAction(incomeToDelete.id);
 
     if (!response.success) {
-      toast.error("Failed to delete expense", {
+      toast.error("Failed to delete income", {
         description: response.error || "Something went wrong",
       });
       return;
     }
 
-    // Refresh expenses data from server (updates both this page and dashboard)
-    await refreshExpenses();
-    
+    await loadIncome();
     setIsDeleteDialogOpen(false);
-    setExpenseToDelete(null);
-    toast.success("Expense deleted", {
-      description: `Deleted ${expenseToDelete.description}`,
+    setIncomeToDelete(null);
+    toast.success("Income deleted", {
+      description: `Deleted ${incomeToDelete.description}`,
     });
   };
-
-  // Convert total expenses to user's currency
-  const totalExpensesInUserCurrency = expenses.reduce((sum, expense) => {
-    const convertedAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
-    return sum + convertedAmount;
-  }, 0);
 
   return (
     <ProtectedLayout
@@ -223,21 +221,21 @@ export default function ExpensesPage() {
     >
       <Toaster />
       <div className="px-6 py-6 bg-[#F7F7F7] min-h-screen">
-        <ExpenseSearch value={searchQuery} onChange={setSearchQuery} />
+        <IncomeSearch value={searchQuery} onChange={setSearchQuery} />
 
-        <DeleteExpenseDialog
+        <DeleteIncomeDialog
           open={isDeleteDialogOpen}
           onOpenChange={setIsDeleteDialogOpen}
-          onConfirm={handleDeleteExpense}
+          onConfirm={handleDeleteIncome}
         />
 
-        {/* Expenses Table */}
+        {/* Income Table */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="border-b border-gray-200 bg-white hover:bg-white">
-                  <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">
-                    <Button
+                <TableHead className="text-xs font-medium text-gray-500 uppercase tracking-wider py-4">
+                  <Button
                     variant="ghost"
                     onClick={() => handleSort("date")}
                     className="hover:bg-transparent p-0 h-auto font-medium text-xs uppercase"
@@ -271,49 +269,42 @@ export default function ExpensesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isAddingRow && areCategoriesLoaded && (
-                <AddExpenseRow
+              {isAddingRow && (
+                <AddIncomeRow
                   currencySymbol={currencySymbol}
                   categories={categories}
-                  onSave={handleAddExpense}
+                  onSave={handleAddIncome}
                   onCancel={() => setIsAddingRow(false)}
                 />
               )}
-              {(isLoading || !areCategoriesLoaded) ? (
+              {sortedIncome.length === 0 && !isAddingRow ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-12 text-gray-500">
-                    Loading expenses...
-                  </TableCell>
-                </TableRow>
-              ) : sortedExpenses.length === 0 && !isAddingRow ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-12 text-gray-500">
-                    {searchQuery ? "No expenses found matching your search." : "No expenses yet. Add your first expense to get started!"}
+                    {searchQuery ? "No income found matching your search." : "No income entries yet. Add your first income to get started!"}
                   </TableCell>
                 </TableRow>
               ) : (
-                sortedExpenses.map((expense) => {
-                  const displayAmount = convertFromBaseCurrency(expense.amount, user?.currency || "Dollar");
-                  const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : expense.amount;
+                sortedIncome.map((inc) => {
+                  const displayAmount = convertFromBaseCurrency(inc.amount, user?.currency || "Dollar");
+                  const safeDisplayAmount = Number.isFinite(displayAmount) ? displayAmount : inc.amount;
                   
-                  // Find the category icon
                   let categoryIcon = "";
                   Object.values(categories).forEach((categoryGroup) => {
-                    const found = categoryGroup.find((cat) => cat.name === expense.category);
+                    const found = categoryGroup.find((cat) => cat.name === inc.category);
                     if (found) categoryIcon = found.icon;
                   });
                   
                   return (
-                    <ExpenseTableRow
-                      key={expense.id}
-                      expense={expense}
+                    <IncomeTableRow
+                      key={inc.id}
+                      income={inc}
                       displayAmount={safeDisplayAmount}
                       currencySymbol={currencySymbol}
                       userCurrency={user?.currency || "Dollar"}
                       categoryIcon={categoryIcon}
-                      categoryColor={getCategoryColor(expense.category)}
+                      categoryColor={getCategoryColor(inc.category)}
                       categories={categories}
-                      onUpdate={handleUpdateExpense}
+                      onUpdate={handleUpdateIncome}
                       onDelete={openDeleteDialog}
                     />
                   );

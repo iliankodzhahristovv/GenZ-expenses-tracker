@@ -53,7 +53,7 @@ export async function getIncomeAction(): Promise<ApiResponse<IncomeUI[]>> {
       .from("income")
       .select(INCOME_COLUMNS)
       .eq("user_id", user.id)
-      .order("date", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching income:", error);

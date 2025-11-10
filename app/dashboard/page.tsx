@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ProtectedLayout } from "@/components/layout";
 import { useCurrentUser } from "@/hooks/auth";
+import { useExpenses } from "@/hooks/expenses";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, TooltipProps } from "recharts";
-import { MapPin, Target, TrendingUp, CreditCard, X, Landmark, Coffee, ShoppingBag } from "lucide-react";
+import { MapPin, Target, CreditCard, Landmark } from "lucide-react";
 import { getCurrencySymbol, convertFromBaseCurrency } from "@/lib/currency-utils";
+import { getUserCategoriesAction } from "@/actions/categories";
 
 // Types
 interface SpendingPoint {
@@ -17,50 +19,24 @@ interface SpendingPoint {
   lastMonth: number;
 }
 
-interface Transaction {
-  id: number;
-  merchant: string;
-  category: string;
-  amount: number;
-  icon: React.ComponentType<{ className?: string }>;
-  color: string;
-}
+// Mock data removed - now using real expenses data
 
-interface RecurringCharge {
-  id: number;
-  merchant: string;
-  frequency: string;
-  amount: number;
-  daysLeft: number;
-}
-
-// Mock data
-const spendingData: SpendingPoint[] = [
-  { day: "Day 6", currentMonth: 800, lastMonth: 750 },
-  { day: "Day 9", currentMonth: 950, lastMonth: 920 },
-  { day: "Day 12", currentMonth: 1100, lastMonth: 1050 },
-  { day: "Day 15", currentMonth: 1050, lastMonth: 1150 },
-  { day: "Day 18", currentMonth: 1200, lastMonth: 1180 },
-  { day: "Day 21", currentMonth: 1350, lastMonth: 1300 },
-  { day: "Day 24", currentMonth: 1400, lastMonth: 1420 },
-  { day: "Day 27", currentMonth: 1380, lastMonth: 1450 },
-  { day: "Day 30", currentMonth: 1209, lastMonth: 1380 },
-];
-
-const transactions: Transaction[] = [
-  { id: 1, merchant: "Google Workspace", category: "Software", amount: 109.00, icon: ShoppingBag, color: "bg-indigo-100 text-indigo-600" },
-  { id: 2, merchant: "LinkedIn Ads", category: "Marketing", amount: 850.00, icon: ShoppingBag, color: "bg-purple-100 text-purple-600" },
-  { id: 3, merchant: "Client Lunch", category: "Entertainment", amount: 153.00, icon: Coffee, color: "bg-pink-100 text-pink-600" },
-  { id: 4, merchant: "Office Depot", category: "Office Supplies", amount: 78.00, icon: ShoppingBag, color: "bg-blue-100 text-blue-600" },
-  { id: 5, merchant: "AWS", category: "Infrastructure", amount: 243.00, icon: ShoppingBag, color: "bg-green-100 text-green-600" },
-];
-
-const recurringCharges: RecurringCharge[] = [
-  { id: 1, merchant: "Slack Workspace", frequency: "Every month", amount: 180.00, daysLeft: 27 },
-  { id: 2, merchant: "Adobe Creative Cloud", frequency: "Every month", amount: 299.99, daysLeft: 10 },
-  { id: 3, merchant: "Office Rent", frequency: "Every month", amount: 2500.00, daysLeft: 15 },
-  { id: 4, merchant: "Insurance Premium", frequency: "Every 3 months", amount: 450.00, daysLeft: 7 },
-];
+// Helper function to get category color
+const getCategoryColor = (category: string) => {
+  const colors: { [key: string]: string } = {
+    "Office Supplies": "bg-blue-100 text-blue-700",
+    "Marketing & Advertising": "bg-purple-100 text-purple-700",
+    "Software & Subscriptions": "bg-indigo-100 text-indigo-700",
+    "Travel & Transportation": "bg-cyan-100 text-cyan-700",
+    "Client Entertainment": "bg-pink-100 text-pink-700",
+    "Professional Services": "bg-amber-100 text-amber-700",
+    "Utilities & Rent": "bg-orange-100 text-orange-700",
+    "Equipment & Hardware": "bg-green-100 text-green-700",
+    "Employee Benefits": "bg-emerald-100 text-emerald-700",
+    "Other": "bg-gray-100 text-gray-700",
+  };
+  return colors[category] || "bg-gray-100 text-gray-700";
+};
 
 /**
  * Dashboard Page
@@ -69,7 +45,9 @@ const recurringCharges: RecurringCharge[] = [
  */
 export default function DashboardPage() {
   const { user } = useCurrentUser();
+  const { expenses, isLoading: isLoadingExpenses, mutate: refreshExpenses } = useExpenses();
   const [hideGettingStarted, setHideGettingStarted] = useState(false);
+  const [categories, setCategories] = useState<Record<string, Array<{ id: string; icon: string; name: string }>>>({});
 
   const currentMonthYear = new Date().toLocaleString('default', { 
     month: 'long', 
@@ -79,17 +57,131 @@ export default function DashboardPage() {
   const currencySymbol = getCurrencySymbol(user?.currency || "USD");
   const userCurrency = user?.currency || "USD";
 
-  // Convert spending data to user's currency once with useMemo
-  const convertedSpendingData = useMemo(() => {
-    return spendingData.map(point => ({
-      day: point.day,
-      currentMonth: convertFromBaseCurrency(point.currentMonth, userCurrency),
-      lastMonth: convertFromBaseCurrency(point.lastMonth, userCurrency),
-    }));
-  }, [userCurrency]);
+  // Load user categories
+  useEffect(() => {
+    const loadCategories = async () => {
+      const categoriesResponse = await getUserCategoriesAction();
+      if (categoriesResponse.success && categoriesResponse.data) {
+        setCategories(categoriesResponse.data);
+      }
+    };
 
-  // Get the latest spending value for the header (already in user currency)
-  const currentMonthTotal = convertedSpendingData[convertedSpendingData.length - 1]?.currentMonth || 0;
+    loadCategories();
+  }, []);
+
+  // Calculate spending data from real expenses
+  const spendingData = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Get last month's date
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+    
+    // Filter expenses by month
+    const currentMonthExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+    });
+    
+    const lastMonthExpenses = expenses.filter(expense => {
+      const expenseDate = new Date(expense.date);
+      return expenseDate.getMonth() === lastMonth && expenseDate.getFullYear() === lastMonthYear;
+    });
+    
+    // Debug logging
+    console.log('📊 Graph Debug Info:', {
+      currentMonth,
+      lastMonth,
+      totalExpenses: expenses.length,
+      currentMonthExpensesCount: currentMonthExpenses.length,
+      lastMonthExpensesCount: lastMonthExpenses.length,
+      lastMonthExpenses: lastMonthExpenses.map(e => ({ date: e.date, amount: e.amount }))
+    });
+    
+    // Get days in each month
+    const daysInCurrentMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const daysInLastMonth = new Date(lastMonthYear, lastMonth + 1, 0).getDate();
+    
+    // Calculate cumulative spending by day
+    const calculateCumulativeByDay = (expensesArray: any[], daysInMonth: number) => {
+      const dailyTotals: { [key: number]: number } = {};
+      
+      expensesArray.forEach(expense => {
+        const expenseDate = new Date(expense.date);
+        const day = expenseDate.getDate();
+        if (!dailyTotals[day]) {
+          dailyTotals[day] = 0;
+        }
+        const convertedAmount = convertFromBaseCurrency(expense.amount, userCurrency);
+        // Round to 2 decimal places to avoid floating point precision issues
+        dailyTotals[day] += Math.round(convertedAmount * 100) / 100;
+      });
+      
+      // Convert to cumulative
+      let cumulative = 0;
+      const cumulativeByDay: { [key: number]: number } = {};
+      for (let day = 1; day <= daysInMonth; day++) {
+        cumulative += dailyTotals[day] || 0;
+        // Round cumulative total to 2 decimal places
+        cumulativeByDay[day] = Math.round(cumulative * 100) / 100;
+      }
+      
+      return cumulativeByDay;
+    };
+    
+    const currentMonthCumulative = calculateCumulativeByDay(currentMonthExpenses, daysInCurrentMonth);
+    const lastMonthCumulative = calculateCumulativeByDay(lastMonthExpenses, daysInLastMonth);
+    
+    // Sample 9 points across the month for chart
+    // Use the maximum days to ensure we capture all data
+    const maxDays = Math.max(daysInCurrentMonth, daysInLastMonth);
+    const points = [];
+    const interval = Math.floor(maxDays / 8);
+    
+    for (let i = 0; i < 9; i++) {
+      const day = Math.min(1 + (i * interval), maxDays);
+      const currentValue = currentMonthCumulative[Math.min(day, daysInCurrentMonth)] || 0;
+      const lastValue = lastMonthCumulative[Math.min(day, daysInLastMonth)] || 0;
+      
+      points.push({
+        day: `Day ${day}`,
+        currentMonth: Math.round(currentValue * 100) / 100,
+        lastMonth: Math.round(lastValue * 100) / 100,
+      });
+    }
+    
+    // Always show the final cumulative values at the end
+    if (points.length > 0) {
+      const finalCurrentValue = currentMonthCumulative[daysInCurrentMonth] || 0;
+      const finalLastValue = lastMonthCumulative[daysInLastMonth] || 0;
+      
+      points[points.length - 1] = {
+        day: `Day ${maxDays}`,
+        currentMonth: Math.round(finalCurrentValue * 100) / 100,
+        lastMonth: Math.round(finalLastValue * 100) / 100,
+      };
+    }
+    
+    return points;
+  }, [expenses, userCurrency]);
+
+  // Calculate current month total
+  const currentMonthTotal = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    return expenses
+      .filter(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.getMonth() === currentMonth && expenseDate.getFullYear() === currentYear;
+      })
+      .reduce((sum, expense) => {
+        return sum + convertFromBaseCurrency(expense.amount, userCurrency);
+      }, 0);
+  }, [expenses, userCurrency]);
 
   // Custom tooltip component to display currency symbol
   const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
@@ -97,11 +189,16 @@ export default function DashboardPage() {
       return (
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
           <p className="text-xs text-gray-500 mb-1">{payload[0].payload.day}</p>
-          {payload.map((entry, index) => (
-            <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
-              {entry.name}: {currencySymbol}{Number(entry.value).toFixed(2)}
-            </p>
-          ))}
+          {payload.map((entry, index) => {
+            // Round to 2 decimal places and force .00 format
+            const value = entry.value as number;
+            const formattedValue = (Math.round(value * 100) / 100).toFixed(2);
+            return (
+              <p key={index} className="text-sm font-medium" style={{ color: entry.color }}>
+                {entry.name} : {currencySymbol}{formattedValue}
+              </p>
+            );
+          })}
         </div>
       );
     }
@@ -229,13 +326,10 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={convertedSpendingData}>
+                    <LineChart data={spendingData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        tickFormatter={(value) => `${currencySymbol}${value}`}
-                      />
+                      <YAxis tick={{ fontSize: 12 }} />
                       <Tooltip content={<CustomTooltip />} />
                       <Line type="monotone" dataKey="lastMonth" stroke="#ffc0cb" strokeWidth={2} dot={false} name="Last month" />
                       <Line type="monotone" dataKey="currentMonth" stroke="#999999" strokeWidth={2} dot={false} name="This month" />
@@ -262,102 +356,51 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-3">
-                    {transactions.map((transaction) => {
-                      const displayAmount = convertFromBaseCurrency(transaction.amount, userCurrency);
-                      return (
-                      <div
-                        key={transaction.id}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${transaction.color}`}>
-                            <transaction.icon className="h-4 w-4" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{transaction.merchant}</p>
-                            <p className="text-xs text-gray-500">{transaction.category}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</span>
-                          <button 
-                            className="text-gray-400 hover:text-gray-600"
-                            aria-label="Remove transaction"
-                            title="Remove transaction"
+                  {isLoadingExpenses ? (
+                    <div className="text-center py-8 text-sm text-gray-500">
+                      Loading expenses...
+                    </div>
+                  ) : expenses.length === 0 ? (
+                    <div className="text-center py-8 text-sm text-gray-500">
+                      No expenses yet. Add your first expense to see it here.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {expenses.slice(0, 5).map((expense) => {
+                        const displayAmount = convertFromBaseCurrency(expense.amount, userCurrency);
+                        
+                        // Find the category icon
+                        let categoryIcon = "🛒";
+                        Object.values(categories).forEach((categoryGroup) => {
+                          const found = categoryGroup.find((cat) => cat.name === expense.category);
+                          if (found) categoryIcon = found.icon;
+                        });
+                        
+                        return (
+                          <div
+                            key={expense.id}
+                            className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
                           >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
+                            <div className="flex items-center gap-3">
+                              <div className={`p-2 rounded-lg ${getCategoryColor(expense.category)} flex items-center justify-center text-lg`}>
+                                {categoryIcon}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">{expense.description}</p>
+                                <p className="text-xs text-gray-500">{expense.category}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
-              {/* Recurring Charges */}
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="text-base">Recurring</CardTitle>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {currencySymbol}{convertFromBaseCurrency(85.07, userCurrency).toFixed(2)} remaining due
-                      </p>
-                    </div>
-                    <button className="text-sm text-gray-500 hover:text-gray-700">This month</button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {recurringCharges.map((charge) => {
-                      const displayAmount = convertFromBaseCurrency(charge.amount, userCurrency);
-                      return (
-                      <div
-                        key={charge.id}
-                        className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-xs">💳</span>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{charge.merchant}</p>
-                            <p className="text-xs text-gray-500">{charge.frequency}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">{currencySymbol}{displayAmount.toFixed(2)}</p>
-                          <p className="text-xs text-gray-500">in {charge.daysLeft} days</p>
-                        </div>
-                      </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Investments */}
-              <Card>
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-gray-400" />
-                      <span className="text-sm font-medium">
-                        {currencySymbol}{convertFromBaseCurrency(250000, userCurrency).toFixed(0)} investments
-                      </span>
-                      <span className="text-sm text-green-600">
-                        → {currencySymbol}{convertFromBaseCurrency(37.26, userCurrency).toFixed(2)} (0%)
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500">Today</span>
-                  </div>
-                  <div className="mt-3">
-                    <p className="text-xs text-gray-500">Top movers today</p>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>

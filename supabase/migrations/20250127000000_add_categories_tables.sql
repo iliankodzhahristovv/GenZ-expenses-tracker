@@ -41,3 +41,8 @@ CREATE INDEX IF NOT EXISTS idx_categories_user_id_category_slug ON public.catego
 CREATE INDEX IF NOT EXISTS idx_categories_group_name ON public.categories(user_id, group_name);
 
 
+
+
+
+
+
